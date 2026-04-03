@@ -1,7 +1,6 @@
 const std = @import("std");
 const CONF = @import("../engine/config.zig").CONF;
 const Fui = @import("../engine/fui.zig").Fui;
-const PIVOTS = @import("../engine/fui.zig").PIVOTS;
 const State = @import("../engine/state.zig").State;
 const StateMachine = @import("../engine/state.zig").StateMachine;
 const Mouse = @import("../engine/mouse.zig").Mouse;
@@ -42,8 +41,8 @@ pub const MenuScene = struct {
         };
     }
     pub fn draw(self: *MenuScene, mouse: Mouse) void {
-        const cx: i32 = self.fui.pivots[PIVOTS.CENTER][0];
-        const cy: i32 = self.fui.pivots[PIVOTS.CENTER][1] - 192;
+        const cx: i32 = self.fui.pivotX(.center);
+        const cy: i32 = self.fui.pivotY(.center) - 192;
 
         const tx: i32 = cx - self.fui.text_center(CONF.THE_NAME, CONF.FONT_BIG)[0];
         self.fui.draw_text(CONF.THE_NAME, tx + 4, cy + 4, CONF.FONT_BIG, CONF.COLOR_SECONDARY);

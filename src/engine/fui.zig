@@ -19,27 +19,37 @@ inline fn vec2(x: i32, y: i32) Vec2 {
 }
 pub const PIVOTS = struct {
     pub const PADDING = 24;
-    pub const CENTER = 0;
-    pub const TOP_LEFT = 1;
-    pub const TOP_RIGHT = 2;
-    pub const BOTTOM_LEFT = 3;
-    pub const BOTTOM_RIGHT = 4;
+};
+pub const Pivot = enum {
+    center,
+    top_left,
+    top_right,
+    bottom_left,
+    bottom_right,
 };
 pub const Fui = struct {
     app_name: [:0]const u8 = CONF.THE_NAME,
-    pivots: [5]Vec2,
     buf: *[CONF.SCREEN_W * CONF.SCREEN_H]u32 = undefined,
     pub fn init(buf: *[CONF.SCREEN_W * CONF.SCREEN_H]u32) Fui {
         return Fui{
             .buf = buf,
-            .pivots = .{
-                vec2(CONF.SCREEN_W / 2, CONF.SCREEN_H / 2),
-                vec2(PIVOTS.PADDING, PIVOTS.PADDING),
-                vec2(CONF.SCREEN_W - PIVOTS.PADDING, PIVOTS.PADDING),
-                vec2(PIVOTS.PADDING, CONF.SCREEN_H - PIVOTS.PADDING),
-                vec2(CONF.SCREEN_W - PIVOTS.PADDING, CONF.SCREEN_H - PIVOTS.PADDING),
-            },
         };
+    }
+    pub inline fn pivot(self: *const Fui, p: Pivot) Vec2 {
+        _ = self;
+        return switch (p) {
+            .center => vec2(CONF.SCREEN_W / 2, CONF.SCREEN_H / 2),
+            .top_left => vec2(PIVOTS.PADDING, PIVOTS.PADDING),
+            .top_right => vec2(CONF.SCREEN_W - PIVOTS.PADDING, PIVOTS.PADDING),
+            .bottom_left => vec2(PIVOTS.PADDING, CONF.SCREEN_H - PIVOTS.PADDING),
+            .bottom_right => vec2(CONF.SCREEN_W - PIVOTS.PADDING, CONF.SCREEN_H - PIVOTS.PADDING),
+        };
+    }
+    pub inline fn pivotX(self: *const Fui, p: Pivot) i32 {
+        return self.pivot(p)[0];
+    }
+    pub inline fn pivotY(self: *const Fui, p: Pivot) i32 {
+        return self.pivot(p)[1];
     }
     pub fn put_pixel(self: *Fui, x: i32, y: i32, color: u32) void {
         const index: usize = @intCast(y * CONF.SCREEN_W + x);
@@ -261,14 +271,14 @@ pub const Fui = struct {
     }
     pub fn draw_version(self: *Fui) void {
         const len = self.text_length(CONF.VERSION, CONF.FONT_DEFAULT_SIZE);
-        const ver_x: i32 = self.pivots[PIVOTS.BOTTOM_RIGHT][0] - len;
-        const ver_y: i32 = self.pivots[PIVOTS.BOTTOM_RIGHT][1];
+        const ver_x: i32 = self.pivotX(.bottom_right) - len;
+        const ver_y: i32 = self.pivotY(.bottom_right);
         self.draw_text(CONF.VERSION, ver_x, ver_y, CONF.FONT_DEFAULT_SIZE, CONF.COLOR_SECONDARY);
     }
     fn draw_base_popup(self: *Fui, message: [:0]const u8, bg_color: u32) Rect {
         const text_width: i32 = self.text_length(message, CONF.FONT_DEFAULT_SIZE);
         const popup_size = vec2(if (text_width < 256) 256 else text_width + 128, 128);
-        const center = vec2(self.pivots[PIVOTS.CENTER][0], self.pivots[PIVOTS.CENTER][1]);
+        const center = vec2(self.pivotX(.center), self.pivotY(.center));
         const popup_corner = vec2(center[0] - @divFloor(popup_size[0], 2), center[1] - @divFloor(popup_size[1], 2));
 
         const text_x: i32 = popup_corner[0] + @divFloor(popup_size[0] - text_width, 2);
@@ -294,7 +304,7 @@ pub const Fui = struct {
         // Button
         const button_height = 32;
         const button_width = 80;
-        const button_x = self.pivots[PIVOTS.CENTER][0] - @divFloor(button_width, 2);
+        const button_x = self.pivotX(.center) - @divFloor(button_width, 2);
         const button_y = popup_corner[1] + popup_height - 50;
         const ok_clicked = self.button(button_x, button_y, button_width, button_height, "OK", CONF.COLOR_OK, mouse);
         if (ok_clicked) return true;

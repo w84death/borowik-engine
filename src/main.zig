@@ -10,7 +10,6 @@ const c = @cImport({
     @cInclude("fenster_audio.h");
 });
 const CONF = @import("engine/config.zig").CONF;
-const PIVOTS = @import("engine/fui.zig").PIVOTS;
 const StateMachine = @import("engine/state.zig").StateMachine;
 const State = @import("engine/state.zig").State;
 const Fui = @import("engine/fui.zig").Fui;
@@ -38,6 +37,7 @@ pub fn main() void {
     var close_application = false;
     var dt: f32 = 0.0;
     var now: i64 = c.fenster_time();
+    var fps_text_buf: [32]u8 = undefined;
 
     while (!close_application and c.fenster_loop(&f) == 0) {
         const d: f32 = @floatFromInt(c.fenster_time() - now);
@@ -65,15 +65,18 @@ pub fn main() void {
         }
 
         // Quit
-        if (!sm.is(State.main_menu) and fui.button(fui.pivots[PIVOTS.TOP_RIGHT][0] - 80, fui.pivots[PIVOTS.TOP_RIGHT][1], 80, 32, "Quit", CONF.COLOR_MENU_NORMAL, mouse)) {
+        if (!sm.is(State.main_menu) and fui.button(fui.pivotX(.top_right) - 80, fui.pivotY(.top_right), 80, 32, "Quit", CONF.COLOR_MENU_NORMAL, mouse)) {
             sm.goTo(State.quit);
         }
-        // Version
+
         fui.draw_version();
+        const fps: i32 = if (dt > 0.0) @intFromFloat(@round(1.0 / dt)) else 0;
+        const fps_text = std.fmt.bufPrint(&fps_text_buf, "FPS: {d}", .{fps}) catch "FPS: ?";
+        fui.draw_text(fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), CONF.FONT_DEFAULT_SIZE, CONF.COLOR_SECONDARY);
 
         fui.draw_cursor_lines(.{ f.x, f.y });
 
-        const frame_time_target: f64 = 1000.0 / 30.0;
+        const frame_time_target: f64 = 1000.0 / 60.0;
         const processing_time: f64 = @floatFromInt(c.fenster_time() - now);
         const sleep_ms: i64 = @intFromFloat(@max(0.0, frame_time_target - processing_time));
         if (sleep_ms > 0) {
