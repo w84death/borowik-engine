@@ -7,15 +7,6 @@ pub const Vec2 = struct {
         return .{ .x = x, .y = y };
     }
 };
-pub const Mouse = struct {
-    x: i32,
-    y: i32,
-    pressed: bool,
-    right_pressed: bool,
-    pub fn init(x: i32, y: i32, pressed: bool, right_pressed: bool) Mouse {
-        return .{ .x = x, .y = y, .pressed = pressed, .right_pressed = right_pressed };
-    }
-};
 pub const Rect = struct {
     w: i32,
     h: i32,

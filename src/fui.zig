@@ -3,7 +3,7 @@ const c = @cImport({
     @cInclude("fenster.h");
 });
 const Vec2 = @import("math.zig").Vec2;
-const Mouse = @import("math.zig").Mouse;
+const Mouse = @import("mouse.zig").Mouse;
 const Rect = @import("math.zig").Rect;
 const CONF = @import("config.zig").CONF;
 const Font = @import("font.zig").Font8x16;

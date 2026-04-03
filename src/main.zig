@@ -15,7 +15,7 @@ const StateMachine = @import("state.zig").StateMachine;
 const State = @import("state.zig").State;
 const Fui = @import("fui.zig").Fui;
 const Vec2 = @import("math.zig").Vec2;
-const Mouse = @import("math.zig").Mouse;
+const MouseButtons = @import("mouse.zig").MouseButtons;
 const MenuScene = @import("scenes/menu.zig").MenuScene;
 const AboutScene = @import("scenes/about.zig").AboutScene;
 
@@ -29,10 +29,7 @@ pub fn main() void {
     });
     _ = c.fenster_open(&f);
     defer c.fenster_close(&f);
-    var mouse_pressed = false;
-    var mouse_lock = false;
-    var right_mouse_pressed = false;
-    var right_mouse_lock = false;
+    var mouse_buttons = MouseButtons.init();
     var fui = Fui.init(&buf);
     var sm = StateMachine.init(State.main_menu);
 
@@ -50,32 +47,7 @@ pub fn main() void {
         sm.update();
         fui.clear_background(CONF.COLOR_BG);
 
-        if (mouse_lock and mouse_pressed and (f.mouse & 1) == 0) {
-            mouse_pressed = false;
-            mouse_lock = false;
-        } else if (!mouse_lock and !mouse_pressed and (f.mouse & 1) != 0) {
-            mouse_pressed = true;
-            mouse_lock = true;
-        } else if (mouse_lock and !mouse_pressed and (f.mouse & 1) == 0) {
-            mouse_pressed = false;
-            mouse_lock = false;
-        } else {
-            mouse_pressed = false;
-        }
-
-        if (right_mouse_lock and right_mouse_pressed and (f.mouse & 2) == 0) {
-            right_mouse_pressed = false;
-            right_mouse_lock = false;
-        } else if (!right_mouse_lock and !right_mouse_pressed and (f.mouse & 2) != 0) {
-            right_mouse_pressed = true;
-            right_mouse_lock = true;
-        } else if (right_mouse_lock and !right_mouse_pressed and (f.mouse & 2) == 0) {
-            right_mouse_pressed = false;
-            right_mouse_lock = false;
-        } else {
-            right_mouse_pressed = false;
-        }
-        const mouse = Mouse.init(f.x, f.y, mouse_pressed, right_mouse_pressed);
+        const mouse = mouse_buttons.update(f.x, f.y, @intCast(f.mouse));
 
         switch (sm.current) {
             State.main_menu => {

@@ -1,5 +1,5 @@
 pub const CONF = struct {
-    pub const VERSION = "1.0-alpha";
+    pub const VERSION = "1.0-beta";
     pub const THE_NAME = "P1X ZE";
     pub const TAG_LINE = "Create something awesome.";
     pub const SCREEN_W = 800;

@@ -5,7 +5,7 @@ const PIVOTS = @import("../fui.zig").PIVOTS;
 const State = @import("../state.zig").State;
 const StateMachine = @import("../state.zig").StateMachine;
 const Vec2 = @import("../math.zig").Vec2;
-const Mouse = @import("../math.zig").Mouse;
+const Mouse = @import("../mouse.zig").Mouse;
 
 pub const AboutScene = struct {
     fui: Fui,
