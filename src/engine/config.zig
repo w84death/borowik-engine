@@ -5,7 +5,7 @@
 // *************************************
 
 pub const CONF = struct {
-    pub const VERSION = "1.1-RC1";
+    pub const VERSION = "1.0";
     pub const THE_NAME = "Borowik";
     pub const TAG_LINE = "Grow something awesome.";
     pub const SCREEN_W = 800;

@@ -10,7 +10,6 @@ const StateMachine = @import("../engine/state.zig").StateMachine;
 const SPRITE_PATH = "sprites/borowik.bmp";
 const SPRITE_SIZE = 32;
 const SPRITE_FRAME_DURATION = 0.12;
-const SPRITE_START_FRAME = 0;
 const SPRITE_ANIM_LEN = 3;
 
 pub fn ExampleScene(comptime Theme: type) type {
@@ -43,7 +42,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                     .{ .text = "Ask Yes/No", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.yes_no_popup },
                     .{ .text = "Toggle VFX", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_vfx },
                     .{ .text = "Spawn Sprite", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_sprite },
-                    .{ .text = "Spawn 50", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_50_sprites },
+                    .{ .text = "Spawn 50 sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_50_sprites },
                 },
             },
         };
@@ -167,12 +166,13 @@ pub fn ExampleScene(comptime Theme: type) type {
         fn spawn_random_sprite(self: *Self) !void {
             const sheet = if (self.sprite_sheet) |*s| s else return;
 
+            const rand = self.prng.random();
             var sprite = Sprite.init(sheet, SPRITE_FRAME_DURATION);
-            try sprite.set_animation(SPRITE_START_FRAME, SPRITE_ANIM_LEN, SPRITE_FRAME_DURATION, true);
+            try sprite.set_animation(0, SPRITE_ANIM_LEN, SPRITE_FRAME_DURATION, true);
+            sprite.current_offset = rand.intRangeAtMost(usize, 0, SPRITE_ANIM_LEN - 1);
 
             const max_x = @max(0, CONF.SCREEN_W - SPRITE_SIZE);
             const max_y = @max(0, CONF.SCREEN_H - SPRITE_SIZE);
-            const rand = self.prng.random();
 
             const x = rand.intRangeAtMost(i32, 0, max_x);
             const y = rand.intRangeAtMost(i32, 0, max_y);
