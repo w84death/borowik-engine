@@ -5,7 +5,7 @@
 // *************************************
 
 pub const CONF = struct {
-    pub const VERSION = "1.0-RC3";
+    pub const VERSION = "1.0-RC4";
     pub const THE_NAME = "P1X ZE";
     pub const TAG_LINE = "Create something awesome.";
     pub const SCREEN_W = 800;
@@ -13,7 +13,8 @@ pub const CONF = struct {
     pub const TARGET_FPS = 60.0;
     pub const FONT_WIDTH = 8;
     pub const FONT_HEIGHT = 8;
-    pub const FONT_DEFAULT_SIZE = 2;
-    pub const FONT_BIG = 8;
     pub const FONT_SMOL = 1;
+    pub const FONT_DEFAULT_SIZE = 2;
+    pub const FONT_MEDIUM = 4;
+    pub const FONT_BIG = 8;
 };

@@ -20,7 +20,10 @@ const State = enum {
     quit,
 };
 const StateMachine = @import("engine/state.zig").StateMachine(State);
-const MenuScene = @import("scenes/menu.zig").MenuScene(State, StateMachine);
+const Menu = @import("engine/menu.zig").Menu(State, StateMachine);
+
+// Scenes
+const MenuScene = @import("scenes/menu.zig").MenuScene(Menu);
 const AboutScene = @import("scenes/about.zig").AboutScene(State, StateMachine);
 const ExampleScene = @import("scenes/example.zig").ExampleScene(State, StateMachine);
 
@@ -41,23 +44,24 @@ pub fn main() void {
     var fps_text_buf: [32]u8 = undefined;
     var esc_lock = false;
 
-    const menu_groups = [_]MenuScene.MenuGroup{
+    const menu_groups = [_]Menu.MenuGroup{
         .{
             .title = "Main Menu",
-            .items = &[_]MenuScene.MenuItem{
+            .items = &[_]Menu.MenuItem{
                 .{ .text = "Example", .color = THEME.MENU_NORMAL, .target_state = State.example },
             },
         },
         .{
             .title = "System",
-            .items = &[_]MenuScene.MenuItem{
+            .items = &[_]Menu.MenuItem{
                 .{ .text = "About", .color = THEME.MENU_SECONDARY, .target_state = State.about },
                 .{ .text = "Quit", .color = THEME.MENU_SECONDARY, .target_state = State.quit },
             },
         },
     };
 
-    var menu = MenuScene.init(&fui, &sm, &menu_groups);
+    const core_menu = Menu.init(&fui, &sm, &menu_groups);
+    var menu = MenuScene.init(&fui, core_menu);
     var about = AboutScene.init(&fui);
     var example = ExampleScene.init(&fui);
 
@@ -97,6 +101,7 @@ pub fn main() void {
             sm.go_to(State.main_menu);
         }
 
+        // Bottom global info
         fui.draw_version();
         const fps: i32 = if (renderer.dt > 0.0) @intFromFloat(@round(1.0 / renderer.dt)) else 0;
         const fps_text = std.fmt.bufPrint(&fps_text_buf, "FPS: {d}", .{fps}) catch "FPS: ?";

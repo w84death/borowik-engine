@@ -23,9 +23,9 @@ pub fn ExampleScene(comptime State: type, comptime StateMachine: type) type {
             self.vfx.draw(THEME.SECONDARY, dt);
 
             const title = "Example Scene";
-            const tx = self.fui.pivotX(.center) - self.fui.text_center(title, CONF.FONT_BIG)[0];
+            const tx = self.fui.pivotX(.center) - self.fui.text_center(title, CONF.FONT_MEDIUM)[0];
             const ty = self.fui.pivotY(.center) - 96;
-            self.fui.draw_text(title, tx, ty, CONF.FONT_BIG, THEME.PRIMARY);
+            self.fui.draw_text(title, tx, ty, CONF.FONT_MEDIUM, THEME.PRIMARY);
         }
     };
 }
