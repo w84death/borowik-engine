@@ -25,7 +25,7 @@ pub fn AboutScene() type {
         pub fn draw(self: *Self) void {
             const px = self.fui.pivotX(.top_left);
             const py = self.fui.pivotY(.top_left);
-            self.fui.draw_text_block(&lines, px, py + 64, 24, THEME.FONT_DEFAULT_SIZE, THEME.PRIMARY);
+            self.fui.draw_text_block(&lines, px, py + 64, 24, THEME.FONT_DEFAULT, THEME.PRIMARY_COLOR);
         }
     };
 }

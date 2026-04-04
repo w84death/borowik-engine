@@ -48,14 +48,14 @@ pub fn main() void {
         .{
             .title = "Main Menu",
             .items = &[_]Menu.MenuItem{
-                .{ .text = "Example", .color = THEME.MENU_NORMAL, .target_state = State.example },
+                .{ .text = "Example", .color = THEME.MENU_NORMAL_COLOR, .target_state = State.example },
             },
         },
         .{
             .title = "System",
             .items = &[_]Menu.MenuItem{
-                .{ .text = "About", .color = THEME.MENU_SECONDARY, .target_state = State.about },
-                .{ .text = "Quit", .color = THEME.MENU_SECONDARY, .target_state = State.quit },
+                .{ .text = "About", .color = THEME.MENU_SECONDARY_COLOR, .target_state = State.about },
+                .{ .text = "Quit", .color = THEME.MENU_SECONDARY_COLOR, .target_state = State.quit },
             },
         },
     };
@@ -68,7 +68,7 @@ pub fn main() void {
     while (c.fenster_loop(&f) == 0) {
         sm.update();
         renderer.begin_frame();
-        renderer.clear_background(THEME.BG);
+        renderer.clear_background(THEME.BG_COLOR);
 
         const mouse = mouse_buttons.update(f.x, f.y, @intCast(f.mouse));
 
@@ -97,7 +97,7 @@ pub fn main() void {
         }
 
         // Top global navigation
-        if (!sm.is(State.main_menu) and fui.button(fui.pivotX(.top_left), fui.pivotY(.top_left), 120, 32, "< Menu", THEME.MENU_SECONDARY, mouse)) {
+        if (!sm.is(State.main_menu) and fui.button(fui.pivotX(.top_left), fui.pivotY(.top_left), 120, 32, "< Menu", THEME.MENU_SECONDARY_COLOR, mouse)) {
             sm.go_to(State.main_menu);
         }
 
@@ -105,7 +105,7 @@ pub fn main() void {
         fui.draw_version();
         const fps: i32 = if (renderer.dt > 0.0) @intFromFloat(@round(1.0 / renderer.dt)) else 0;
         const fps_text = std.fmt.bufPrint(&fps_text_buf, "FPS: {d}", .{fps}) catch "FPS: ?";
-        fui.draw_text(fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), THEME.FONT_DEFAULT_SIZE, THEME.SECONDARY);
+        fui.draw_text(fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
         fui.draw_cursor_lines(.{ f.x, f.y });
         renderer.cap_frame(CONF.TARGET_FPS);
     }

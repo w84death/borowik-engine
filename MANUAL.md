@@ -2,7 +2,7 @@
 
 This manual describes the current architecture after the latest refactors.
 
-## 1) Quick Start
+## Quick Start
 
 Build:
 
@@ -25,7 +25,7 @@ Core files:
 - `src/themes/mil.zig` - theme colors
 - `src/main.zig` - app state, scene setup, HUD logic
 
-## 2) Current Architecture
+## Current Architecture
 
 The engine is now separated from app logic:
 
@@ -34,7 +34,7 @@ The engine is now separated from app logic:
 
 Important: `Render` no longer draws HUD (version/FPS/cursor). That is app-level code in `main.zig`.
 
-## 3) Config vs Theme
+## Config vs Theme
 
 Use `CONF` (`src/engine/config.zig`) for:
 
@@ -53,7 +53,7 @@ const CONF = @import("engine/config.zig").CONF;
 const THEME = @import("themes/mil.zig").Theme;
 ```
 
-## 4) Per-Frame Loop (Main)
+## Per-Frame Loop (Main)
 
 Reference flow (current pattern):
 
@@ -73,7 +73,7 @@ fui.draw_cursor_lines(.{ f.x, f.y });
 renderer.cap_frame(60.0);
 ```
 
-## 5) FUI API (What You Use Most)
+## FUI API (What You Use Most)
 
 Main helpers in `Fui`:
 
@@ -88,7 +88,7 @@ Main helpers in `Fui`:
 
 Primitive drawing (`draw_rect`, `draw_line`, etc.) now belongs to `fui.renderer.*`.
 
-## 6) Renderer API
+## Renderer API
 
 `Render` in `src/engine/render.zig` provides:
 
@@ -102,7 +102,7 @@ Primitive drawing (`draw_rect`, `draw_line`, etc.) now belongs to `fui.renderer.
 
 `renderer.dt` is available for FPS calculations in app code.
 
-## 7) Pivot Helpers
+## Pivot Helpers
 
 Anchoring helpers in `Fui`:
 
@@ -118,7 +118,7 @@ Example:
 fui.draw_text("HELLO", fui.pivotX(.top_left), fui.pivotY(.top_left), CONF.FONT_DEFAULT_SIZE, THEME.PRIMARY);
 ```
 
-## 8) Mouse Input and Buttons
+## Mouse Input and Buttons
 
 Setup:
 
@@ -142,7 +142,7 @@ if (fui.button(100, 120, 200, 32, "Start", THEME.MENU_NORMAL, mouse)) {
 
 `mouse.pressed` and `mouse.right_pressed` are edge-triggered (one true frame on press).
 
-## 9) Generic State Machine
+## Generic State Machine
 
 `src/engine/state.zig` exports a generic factory:
 
@@ -160,7 +160,7 @@ sm.update();
 if (sm.is(State.about)) {}
 ```
 
-## 10) Scenes Are App-Level
+## Scenes Are App-Level
 
 Scenes are generic over app state type and machine type.
 

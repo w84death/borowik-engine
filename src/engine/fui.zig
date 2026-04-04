@@ -67,7 +67,7 @@ pub const Fui = struct {
                         if ((bmh >> bit) & 1 != 0) {
                             const rx: i32 = @intCast(dx * scale);
                             const ry: i32 = @intCast(dy * scale);
-                            self.renderer.draw_rect(px + rx + 2, y + ry + 2, scale, scale, THEME.SHADOW);
+                            self.renderer.draw_rect(px + rx + 2, y + ry + 2, scale, scale, THEME.SHADOW_COLOR);
                             self.renderer.draw_rect(px + rx, y + ry, scale, scale, color);
                         }
                     }
@@ -92,19 +92,19 @@ pub const Fui = struct {
         return vec2(@divFloor(self.text_length(s, scale), 2), @divFloor(scale * CONF.FONT_HEIGHT, 2));
     }
     pub fn draw_cursor_lines(self: *Fui, mouse: Vec2) void {
-        self.renderer.draw_line(mouse[0], 0, mouse[0], CONF.SCREEN_H, THEME.CROSSHAIR);
-        self.renderer.draw_line(0, mouse[1], CONF.SCREEN_W, mouse[1], THEME.CROSSHAIR);
+        self.renderer.draw_line(mouse[0], 0, mouse[0], CONF.SCREEN_H, THEME.CROSSHAIR_COLOR);
+        self.renderer.draw_line(0, mouse[1], CONF.SCREEN_W, mouse[1], THEME.CROSSHAIR_COLOR);
     }
     pub fn button(self: *Fui, x: i32, y: i32, w: i32, h: i32, label: [:0]const u8, color: u32, mouse: Mouse) bool {
         const hover: bool = self.check_hover(mouse, Rect.init(w, h, x, y));
-        const text_cener = self.text_center(label, THEME.FONT_DEFAULT_SIZE);
+        const text_cener = self.text_center(label, THEME.FONT_DEFAULT);
         const text_x: i32 = x + @divFloor(w, 2) - text_cener[0];
         const text_y: i32 = y + @divFloor(h, 2) - text_cener[1];
 
-        // self.renderer.draw_rect(x + CONF.SHADOW, y + CONF.SHADOW, w, h, THEME.SHADOW);
+        // self.renderer.draw_rect(x + CONF.SHADOW, y + CONF.SHADOW, w, h, THEME.SHADOW_COLOR);
         self.renderer.draw_rect(x, y, w, h, color);
-        self.renderer.draw_rect_lines(x, y, w, h, if (hover) THEME.MENU_FRAME_HOVER else THEME.MENU_FRAME);
-        self.draw_text(label, text_x, text_y, THEME.FONT_DEFAULT_SIZE, if (hover) THEME.MENU_FRAME_HOVER else THEME.MENU_TEXT);
+        self.renderer.draw_rect_lines(x, y, w, h, if (hover) THEME.MENU_FRAME_HOVER_COLOR else THEME.MENU_FRAME_COLOR);
+        self.draw_text(label, text_x, text_y, THEME.FONT_DEFAULT, if (hover) THEME.MENU_FRAME_HOVER_COLOR else THEME.MENU_TEXT_COLOR);
 
         return mouse.pressed and hover;
     }
@@ -114,13 +114,13 @@ pub const Fui = struct {
             mouse.y >= target.y and mouse.y < target.y + target.h;
     }
     pub fn draw_version(self: *Fui) void {
-        const len = self.text_length(CONF.VERSION, THEME.FONT_DEFAULT_SIZE);
+        const len = self.text_length(CONF.VERSION, THEME.FONT_DEFAULT);
         const ver_x: i32 = self.pivotX(.bottom_right) - len;
         const ver_y: i32 = self.pivotY(.bottom_right);
-        self.draw_text(CONF.VERSION, ver_x, ver_y, THEME.FONT_DEFAULT_SIZE, THEME.SECONDARY);
+        self.draw_text(CONF.VERSION, ver_x, ver_y, THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
     }
     fn draw_base_popup(self: *Fui, message: [:0]const u8, bg_color: u32) Rect {
-        const text_width: i32 = self.text_length(message, THEME.FONT_DEFAULT_SIZE);
+        const text_width: i32 = self.text_length(message, THEME.FONT_DEFAULT);
         const popup_size = vec2(if (text_width < 256) 256 else text_width + 128, 128);
         const center = vec2(self.pivotX(.center), self.pivotY(.center));
         const popup_corner = vec2(center[0] - @divFloor(popup_size[0], 2), center[1] - @divFloor(popup_size[1], 2));
@@ -133,10 +133,10 @@ pub const Fui = struct {
         const w: i32 = popup_size[0];
         const h: i32 = popup_size[1];
 
-        self.renderer.draw_rect(x + 8, y + 8, w, h, THEME.SHADOW);
+        self.renderer.draw_rect(x + 8, y + 8, w, h, THEME.SHADOW_COLOR);
         self.renderer.draw_rect(x, y, w, h, bg_color);
-        self.renderer.draw_rect_lines(x, y, w, h, THEME.LIGHT);
-        self.draw_text(message, text_x, text_y, THEME.FONT_DEFAULT_SIZE, THEME.POPUP_MSG);
+        self.renderer.draw_rect_lines(x, y, w, h, THEME.LIGHT_COLOR);
+        self.draw_text(message, text_x, text_y, THEME.FONT_DEFAULT, THEME.POPUP_MSG_COLOR);
         return Rect.init(popup_size[0], popup_size[1], popup_corner[0], popup_corner[1]);
     }
     pub fn info_popup(self: *Fui, message: [:0]const u8, mouse: Mouse, bg_color: u32) ?bool {
@@ -150,13 +150,13 @@ pub const Fui = struct {
         const button_width = 80;
         const button_x = self.pivotX(.center) - @divFloor(button_width, 2);
         const button_y = popup_corner[1] + popup_height - 50;
-        const ok_clicked = self.button(button_x, button_y, button_width, button_height, "OK", THEME.OK, mouse);
+        const ok_clicked = self.button(button_x, button_y, button_width, button_height, "OK", THEME.OK_COLOR, mouse);
         if (ok_clicked) return true;
         return null;
     }
     pub fn yes_no_popup(self: *Fui, message: [:0]const u8, mouse: Mouse) ?bool {
         // Popup
-        const popupv4: Rect = self.draw_base_popup(message, THEME.POPUP);
+        const popupv4: Rect = self.draw_base_popup(message, THEME.POPUP_COLOR);
         const popup_corner = vec2(popupv4.x, popupv4.y);
         const popup_size = vec2(popupv4.w, popupv4.h);
 
@@ -167,10 +167,10 @@ pub const Fui = struct {
         const no_x = popup_corner[0] + 24;
         const yes_x = popup_corner[0] + popup_size[0] - 80 - 24;
 
-        const yes_clicked = self.button(yes_x, button_y, button_width, button_height, "Yes", THEME.YES, mouse);
+        const yes_clicked = self.button(yes_x, button_y, button_width, button_height, "Yes", THEME.YES_COLOR, mouse);
         if (yes_clicked) return true;
 
-        const no_clicked = self.button(no_x, button_y, button_width, button_height, "No", THEME.NO, mouse);
+        const no_clicked = self.button(no_x, button_y, button_width, button_height, "No", THEME.NO_COLOR, mouse);
         if (no_clicked) return false;
 
         return null;

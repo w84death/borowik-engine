@@ -22,9 +22,9 @@ pub fn ExampleScene() type {
             .{
                 .title = "Example Menu",
                 .items = &[_]ActionMenu.MenuItem{
-                    .{ .text = "Info Popup", .color = THEME.MENU_NORMAL, .target_state = Action.info_popup },
-                    .{ .text = "Ask Yes/No", .color = THEME.MENU_NORMAL, .target_state = Action.yes_no_popup },
-                    .{ .text = "Reset Effect", .color = THEME.MENU_SECONDARY, .target_state = Action.reset_effect },
+                    .{ .text = "Info Popup", .color = THEME.MENU_NORMAL_COLOR, .target_state = Action.info_popup },
+                    .{ .text = "Ask Yes/No", .color = THEME.MENU_NORMAL_COLOR, .target_state = Action.yes_no_popup },
+                    .{ .text = "Reset Effect", .color = THEME.MENU_SECONDARY_COLOR, .target_state = Action.reset_effect },
                 },
             },
         };
@@ -47,16 +47,16 @@ pub fn ExampleScene() type {
 
         pub fn draw(self: *Self, mouse: Mouse, dt: f32) void {
             self.action_state.update();
-            self.vfx.draw(THEME.SECONDARY, dt);
+            self.vfx.draw(THEME.SECONDARY_COLOR, dt);
 
             const title = "Example Scene";
             const tx = self.fui.pivotX(.center) - self.fui.text_center(title, THEME.FONT_MEDIUM)[0];
             const ty = self.fui.pivotY(.center) - 128;
-            self.fui.draw_text(title, tx, ty, THEME.FONT_MEDIUM, THEME.PRIMARY);
+            self.fui.draw_text(title, tx, ty, THEME.FONT_MEDIUM, THEME.PRIMARY_COLOR);
 
             switch (self.action_state.current) {
                 .info_popup => {
-                    if (self.fui.info_popup("Information popup example", mouse, THEME.POPUP) != null) {
+                    if (self.fui.info_popup("Information popup example", mouse, THEME.POPUP_COLOR) != null) {
                         self.action_state.go_to(Action.none);
                     }
                 },
@@ -82,7 +82,7 @@ pub fn ExampleScene() type {
                 "Last choice: Yes"
             else
                 "Last choice: No";
-            self.fui.draw_text(status, mx, ty + 290, THEME.FONT_DEFAULT_SIZE, THEME.SECONDARY);
+            self.fui.draw_text(status, mx, ty + 290, THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
         }
     };
 }
