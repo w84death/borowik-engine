@@ -10,23 +10,28 @@ pub const Theme = struct {
     pub const SECONDARY_COLOR = 0x7FB2FF;
     pub const CROSSHAIR_COLOR = 0x1E4FC9;
 
-    pub const YES_COLOR = 0x3AA3FF;
-    pub const NO_COLOR = 0xF06A7A;
+    pub const YES_COLOR = 0x2FAE66;
+    pub const NO_COLOR = 0xD65A68;
     pub const OK_COLOR = 0x1B45B8;
+    pub const MENU_YES_COLOR = 0x5DCB8B;
+    pub const MENU_NO_COLOR = 0xE88490;
+    pub const MENU_OK_COLOR = 0x639BFF;
 
     pub const POPUP_COLOR = 0xFFFFFF;
     pub const POPUP_MSG_COLOR = 0x2456D3;
 
-    pub const SHADOW_COLOR = 0xEEEEFF;
+    pub const SHADOW_COLOR = 0x203A76;
     pub const LIGHT_COLOR = 0xDCEBFF;
 
     pub const MENU_TEXT_COLOR = 0x1D376E;
     pub const MENU_FRAME_COLOR = 0xE5EEFF;
     pub const MENU_FRAME_HOVER_COLOR = 0xC8DCFF;
-    pub const MENU_NORMAL_COLOR = 0xF8FBFF;
-    pub const MENU_SECONDARY_COLOR = 0xEDF4FF;
+    pub const MENU_NORMAL_COLOR = 0x2E6BFF;
+    pub const MENU_SECONDARY_COLOR = 0x1B45B8;
     pub const MENU_HIGHLIGHT_COLOR = 0x4A88FF;
-    pub const MENU_DANGER_COLOR = 0xE45C6D;
+    pub const MENU_DANGER_COLOR = 0x2A61E6;
+    pub const BUTTON_TEXT_COLOR = 0xFFFFFF;
+    pub const BUTTON_TEXT_HOVER_COLOR = 0xFFFFFF;
 
     pub const MENU_GROUP_TITLE_HEIGHT = 18;
     pub const MENU_FRAME_BASE_HEIGHT = 6;

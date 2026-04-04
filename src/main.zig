@@ -10,7 +10,9 @@ const c = @cImport({
     @cInclude("fenster_audio.h");
 });
 const CONF = @import("engine/config.zig").CONF;
-const THEME = @import("themes/smol.zig").Theme;
+//const THEME = @import("themes/smol.zig").Theme;
+//const THEME = @import("themes/mil.zig").Theme;
+const THEME = @import("themes/shroom.zig").Theme;
 const Fui = @import("engine/fui.zig").Fui(THEME);
 const MouseButtons = @import("engine/mouse.zig").MouseButtons;
 const State = enum {
@@ -48,14 +50,14 @@ pub fn main() void {
         .{
             .title = "Main Menu",
             .items = &[_]Menu.MenuItem{
-                .{ .text = "Example", .color = THEME.MENU_NORMAL_COLOR, .target_state = State.example },
+                .{ .text = "Example", .normal_color = THEME.MENU_NORMAL_COLOR, .hover_color = THEME.MENU_HIGHLIGHT_COLOR, .target_state = State.example },
             },
         },
         .{
             .title = "System",
             .items = &[_]Menu.MenuItem{
-                .{ .text = "About", .color = THEME.MENU_SECONDARY_COLOR, .target_state = State.about },
-                .{ .text = "Quit", .color = THEME.MENU_SECONDARY_COLOR, .target_state = State.quit },
+                .{ .text = "About", .normal_color = THEME.MENU_SECONDARY_COLOR, .hover_color = THEME.MENU_HIGHLIGHT_COLOR, .target_state = State.about },
+                .{ .text = "Quit", .normal_color = THEME.MENU_SECONDARY_COLOR, .hover_color = THEME.MENU_DANGER_COLOR, .target_state = State.quit },
             },
         },
     };
@@ -97,7 +99,7 @@ pub fn main() void {
         }
 
         // Top global navigation
-        if (!sm.is(State.main_menu) and fui.button(fui.pivotX(.top_left), fui.pivotY(.top_left), 120, 32, "< Menu", THEME.MENU_SECONDARY_COLOR, mouse)) {
+        if (!sm.is(State.main_menu) and fui.button(fui.pivotX(.top_left), fui.pivotY(.top_left), 120, 32, "< Menu", THEME.MENU_SECONDARY_COLOR, THEME.MENU_HIGHLIGHT_COLOR, mouse)) {
             sm.go_to(State.main_menu);
         }
 

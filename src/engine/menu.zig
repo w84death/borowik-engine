@@ -15,7 +15,8 @@ pub fn Menu(comptime State: type, comptime StateMachine: type, comptime Theme: t
 
         pub const MenuItem = struct {
             text: [:0]const u8,
-            color: u32,
+            normal_color: u32,
+            hover_color: u32,
             target_state: State,
         };
 
@@ -64,7 +65,7 @@ pub fn Menu(comptime State: type, comptime StateMachine: type, comptime Theme: t
                 for (group.items) |item| {
                     const width = self.fui.text_length(item.text, Theme.FONT_DEFAULT);
                     if (width > longest) longest = width;
-                    if (self.fui.button(cx - @divFloor(width, 2) - Theme.MENU_BUTTON_X_PADDING, y, width + Theme.MENU_FRAME_X_PADDING, Theme.MENU_ITEM_HEIGHT, item.text, item.color, mouse)) {
+                    if (self.fui.button(cx - @divFloor(width, 2) - Theme.MENU_BUTTON_X_PADDING, y, width + Theme.MENU_FRAME_X_PADDING, Theme.MENU_ITEM_HEIGHT, item.text, item.normal_color, item.hover_color, mouse)) {
                         sm.go_to(item.target_state);
                     }
                     y += Theme.MENU_ITEM_STEP;

@@ -21,9 +21,9 @@ pub fn ExampleScene(comptime Theme: type) type {
             .{
                 .title = "Example Menu",
                 .items = &[_]ActionMenu.MenuItem{
-                    .{ .text = "Info Popup", .color = Theme.MENU_NORMAL_COLOR, .target_state = Action.info_popup },
-                    .{ .text = "Ask Yes/No", .color = Theme.MENU_NORMAL_COLOR, .target_state = Action.yes_no_popup },
-                    .{ .text = "Reset Effect", .color = Theme.MENU_SECONDARY_COLOR, .target_state = Action.reset_effect },
+                    .{ .text = "Info Popup", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.info_popup },
+                    .{ .text = "Ask Yes/No", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.yes_no_popup },
+                    .{ .text = "Reset Effect", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.reset_effect },
                 },
             },
         };

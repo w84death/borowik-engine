@@ -98,16 +98,16 @@ pub fn Fui(comptime Theme: type) type {
             self.renderer.draw_line(mouse[0], 0, mouse[0], CONF.SCREEN_H, Theme.CROSSHAIR_COLOR);
             self.renderer.draw_line(0, mouse[1], CONF.SCREEN_W, mouse[1], Theme.CROSSHAIR_COLOR);
         }
-        pub fn button(self: *Self, x: i32, y: i32, w: i32, h: i32, label: [:0]const u8, color: u32, mouse: Mouse) bool {
+        pub fn button(self: *Self, x: i32, y: i32, w: i32, h: i32, label: [:0]const u8, normal_color: u32, hover_color: u32, mouse: Mouse) bool {
             const hover: bool = self.check_hover(mouse, Rect.init(w, h, x, y));
             const text_cener = self.text_center(label, Theme.FONT_DEFAULT);
             const text_x: i32 = x + @divFloor(w, 2) - text_cener[0];
             const text_y: i32 = y + @divFloor(h, 2) - text_cener[1];
 
             // self.renderer.draw_rect(x + CONF.SHADOW, y + CONF.SHADOW, w, h, Theme.SHADOW_COLOR);
-            self.renderer.draw_rect(x, y, w, h, color);
+            self.renderer.draw_rect(x, y, w, h, if (hover) hover_color else normal_color);
             self.renderer.draw_rect_lines(x, y, w, h, if (hover) Theme.MENU_FRAME_HOVER_COLOR else Theme.MENU_FRAME_COLOR);
-            self.draw_text(label, text_x, text_y, Theme.FONT_DEFAULT, if (hover) Theme.MENU_FRAME_HOVER_COLOR else Theme.MENU_TEXT_COLOR);
+            self.draw_text(label, text_x, text_y, Theme.FONT_DEFAULT, if (hover) Theme.BUTTON_TEXT_HOVER_COLOR else Theme.BUTTON_TEXT_COLOR);
 
             return mouse.pressed and hover;
         }
@@ -153,7 +153,7 @@ pub fn Fui(comptime Theme: type) type {
             const button_width = 80;
             const button_x = self.pivotX(.center) - @divFloor(button_width, 2);
             const button_y = popup_corner[1] + popup_height - 50;
-            const ok_clicked = self.button(button_x, button_y, button_width, button_height, "OK", Theme.OK_COLOR, mouse);
+            const ok_clicked = self.button(button_x, button_y, button_width, button_height, "OK", Theme.OK_COLOR, Theme.MENU_OK_COLOR, mouse);
             if (ok_clicked) return true;
             return null;
         }
@@ -170,10 +170,10 @@ pub fn Fui(comptime Theme: type) type {
             const no_x = popup_corner[0] + 24;
             const yes_x = popup_corner[0] + popup_size[0] - 80 - 24;
 
-            const yes_clicked = self.button(yes_x, button_y, button_width, button_height, "Yes", Theme.YES_COLOR, mouse);
+            const yes_clicked = self.button(yes_x, button_y, button_width, button_height, "Yes", Theme.YES_COLOR, Theme.MENU_YES_COLOR, mouse);
             if (yes_clicked) return true;
 
-            const no_clicked = self.button(no_x, button_y, button_width, button_height, "No", Theme.NO_COLOR, mouse);
+            const no_clicked = self.button(no_x, button_y, button_width, button_height, "No", Theme.NO_COLOR, Theme.MENU_NO_COLOR, mouse);
             if (no_clicked) return false;
 
             return null;
