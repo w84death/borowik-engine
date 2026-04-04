@@ -86,7 +86,8 @@ pub const Fui = struct {
     pub fn text_length(self: *Fui, s: []const u8, scale: i32) i32 {
         _ = self;
         const len: i32 = @intCast(s.len);
-        return len * scale * CONF.FONT_WIDTH + (len - 2) * 2;
+        if (len <= 0) return 0;
+        return len * scale * CONF.FONT_WIDTH + (len - 1);
     }
     pub fn text_center(self: *Fui, s: []const u8, scale: i32) Vec2 {
         return vec2(@divFloor(self.text_length(s, scale), 2), @divFloor(scale * CONF.FONT_HEIGHT, 2));
