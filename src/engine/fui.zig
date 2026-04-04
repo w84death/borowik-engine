@@ -76,6 +76,13 @@ pub const Fui = struct {
             px += @as(i32, CONF.FONT_WIDTH) * scale + 1;
         }
     }
+    pub fn draw_text_block(self: *Fui, lines: []const [:0]const u8, x: i32, y: i32, line_height: i32, scale: i32, color: u32) void {
+        var ay = y;
+        for (lines) |line| {
+            self.draw_text(line, x, ay, scale, color);
+            ay += line_height;
+        }
+    }
     pub fn text_length(self: *Fui, s: []const u8, scale: i32) i32 {
         _ = self;
         const len: i32 = @intCast(s.len);
