@@ -10,6 +10,11 @@ pub const SpriteError = error{
 };
 
 pub const SpriteSheet = struct {
+    const Span = struct {
+        start: u16,
+        end: u16,
+    };
+
     allocator: std.mem.Allocator,
     width: i32,
     height: i32,
@@ -17,8 +22,10 @@ pub const SpriteSheet = struct {
     tile_h: i32,
     columns: i32,
     rows: i32,
-    palette: [CONF.BMP_DEFAULT_PALETTE_COLORS]u32,
-    pixels: []u8,
+    frame_pixels: []u32,
+    row_span_offsets: []u32,
+    spans: []Span,
+    frame_pixels_per_frame: usize,
     transparent_index: u8,
 
     pub fn load_bmp_tiled(
@@ -93,8 +100,8 @@ pub const SpriteSheet = struct {
         }
 
         const pixels_len = width_usize * height_usize;
-        const pixels = try allocator.alloc(u8, pixels_len);
-        errdefer allocator.free(pixels);
+        const indexed_pixels = try allocator.alloc(u8, pixels_len);
+        defer allocator.free(indexed_pixels);
 
         const bottom_up = raw_height > 0;
         var row: usize = 0;
@@ -102,8 +109,66 @@ pub const SpriteSheet = struct {
             const source_row = if (bottom_up) (height_usize - 1 - row) else row;
             const src_off = pixel_start + source_row * row_stride;
             const dst_off = row * width_usize;
-            @memcpy(pixels[dst_off .. dst_off + width_usize], source[src_off .. src_off + width_usize]);
+            @memcpy(indexed_pixels[dst_off .. dst_off + width_usize], source[src_off .. src_off + width_usize]);
         }
+
+        const cols: usize = @intCast(@divFloor(raw_width, tile_w));
+        const rows: usize = @intCast(@divFloor(height, tile_h));
+        const decoded_frame_count = cols * rows;
+        const tile_w_usize: usize = @intCast(tile_w);
+        const tile_h_usize: usize = @intCast(tile_h);
+        const frame_pixels_per_frame = tile_w_usize * tile_h_usize;
+
+        const frame_pixels = try allocator.alloc(u32, decoded_frame_count * frame_pixels_per_frame);
+        errdefer allocator.free(frame_pixels);
+
+        const row_count = decoded_frame_count * tile_h_usize;
+        const row_span_offsets = try allocator.alloc(u32, row_count + 1);
+        errdefer allocator.free(row_span_offsets);
+
+        var spans_builder = std.ArrayListUnmanaged(Span){};
+        defer spans_builder.deinit(allocator);
+
+        row_span_offsets[0] = 0;
+        var row_cursor: usize = 0;
+        var frame_index: usize = 0;
+        while (frame_index < decoded_frame_count) : (frame_index += 1) {
+            const frame_x = (frame_index % cols) * tile_w_usize;
+            const frame_y = (frame_index / cols) * tile_h_usize;
+            const frame_base = frame_index * frame_pixels_per_frame;
+
+            row = 0;
+            while (row < tile_h_usize) : (row += 1) {
+                const src_row_base = (frame_y + row) * width_usize + frame_x;
+                const dst_row_base = frame_base + row * tile_w_usize;
+
+                var col: usize = 0;
+                while (col < tile_w_usize) : (col += 1) {
+                    const idx = indexed_pixels[src_row_base + col];
+                    frame_pixels[dst_row_base + col] = if (idx == transparent_index) 0 else palette[idx];
+                }
+
+                col = 0;
+                while (col < tile_w_usize) {
+                    while (col < tile_w_usize and indexed_pixels[src_row_base + col] == transparent_index) : (col += 1) {}
+                    if (col >= tile_w_usize) break;
+
+                    const span_start: usize = col;
+                    while (col < tile_w_usize and indexed_pixels[src_row_base + col] != transparent_index) : (col += 1) {}
+                    const span_end: usize = col;
+
+                    try spans_builder.append(allocator, .{
+                        .start = @intCast(span_start),
+                        .end = @intCast(span_end),
+                    });
+                }
+
+                row_cursor += 1;
+                row_span_offsets[row_cursor] = @intCast(spans_builder.items.len);
+            }
+        }
+
+        const spans = try spans_builder.toOwnedSlice(allocator);
 
         return .{
             .allocator = allocator,
@@ -113,8 +178,10 @@ pub const SpriteSheet = struct {
             .tile_h = tile_h,
             .columns = @divFloor(raw_width, tile_w),
             .rows = @divFloor(height, tile_h),
-            .palette = palette,
-            .pixels = pixels,
+            .frame_pixels = frame_pixels,
+            .row_span_offsets = row_span_offsets,
+            .spans = spans,
+            .frame_pixels_per_frame = frame_pixels_per_frame,
             .transparent_index = transparent_index,
         };
     }
@@ -157,7 +224,9 @@ pub const SpriteSheet = struct {
     }
 
     pub fn deinit(self: *SpriteSheet) void {
-        self.allocator.free(self.pixels);
+        self.allocator.free(self.frame_pixels);
+        self.allocator.free(self.row_span_offsets);
+        self.allocator.free(self.spans);
     }
 
     pub fn frame_count(self: *const SpriteSheet) usize {
@@ -167,32 +236,90 @@ pub const SpriteSheet = struct {
     }
 
     pub fn draw_frame(self: *const SpriteSheet, renderer: *Render, frame_index: usize, x: i32, y: i32) void {
-        const cols: usize = @intCast(self.columns);
+        if (frame_index >= self.frame_count()) return;
+        if (x >= CONF.SCREEN_W or y >= CONF.SCREEN_H) return;
+        if (x + self.tile_w <= 0 or y + self.tile_h <= 0) return;
+
+        if (x >= 0 and y >= 0 and x + self.tile_w <= CONF.SCREEN_W and y + self.tile_h <= CONF.SCREEN_H) {
+            self.draw_frame_fast(renderer, frame_index, x, y);
+        } else {
+            self.draw_frame_clipped(renderer, frame_index, x, y);
+        }
+    }
+
+    fn draw_frame_fast(self: *const SpriteSheet, renderer: *Render, frame_index: usize, x: i32, y: i32) void {
         const tile_w_usize: usize = @intCast(self.tile_w);
         const tile_h_usize: usize = @intCast(self.tile_h);
-        const sheet_w_usize: usize = @intCast(self.width);
+        const screen_w_usize: usize = @intCast(CONF.SCREEN_W);
+        const x_usize: usize = @intCast(x);
+        const y_usize: usize = @intCast(y);
 
-        if (frame_index >= self.frame_count()) return;
-
-        const frame_x: usize = (frame_index % cols) * tile_w_usize;
-        const frame_y: usize = (frame_index / cols) * tile_h_usize;
+        const buffer = renderer.target_buffer();
+        const frame_base = frame_index * self.frame_pixels_per_frame;
+        const row_base = frame_index * tile_h_usize;
 
         var row: usize = 0;
         while (row < tile_h_usize) : (row += 1) {
-            const sy = frame_y + row;
-            const py = y + @as(i32, @intCast(row));
-            if (py < 0 or py >= CONF.SCREEN_H) continue;
+            const dst_row_base = (y_usize + row) * screen_w_usize + x_usize;
+            const src_row_base = frame_base + row * tile_w_usize;
 
-            var col: usize = 0;
-            while (col < tile_w_usize) : (col += 1) {
-                const sx = frame_x + col;
-                const px = x + @as(i32, @intCast(col));
-                if (px < 0 or px >= CONF.SCREEN_W) continue;
+            const spans_start = self.row_span_offsets[row_base + row];
+            const spans_end = self.row_span_offsets[row_base + row + 1];
+            var si: usize = spans_start;
+            while (si < spans_end) : (si += 1) {
+                const span = self.spans[si];
+                const span_start: usize = span.start;
+                const span_end: usize = span.end;
 
-                const idx = self.pixels[sy * sheet_w_usize + sx];
-                if (idx == self.transparent_index) continue;
+                @memcpy(
+                    buffer[dst_row_base + span_start .. dst_row_base + span_end],
+                    self.frame_pixels[src_row_base + span_start .. src_row_base + span_end],
+                );
+            }
+        }
+    }
 
-                renderer.put_pixel(px, py, self.palette[idx]);
+    fn draw_frame_clipped(self: *const SpriteSheet, renderer: *Render, frame_index: usize, x: i32, y: i32) void {
+        const tile_w_usize: usize = @intCast(self.tile_w);
+        const tile_h_usize: usize = @intCast(self.tile_h);
+        const screen_w_usize: usize = @intCast(CONF.SCREEN_W);
+        const buffer = renderer.target_buffer();
+        const frame_base = frame_index * self.frame_pixels_per_frame;
+        const row_base = frame_index * tile_h_usize;
+
+        const clip_x0: i32 = @max(0, -x);
+        const clip_y0: i32 = @max(0, -y);
+        const clip_x1: i32 = @min(self.tile_w, CONF.SCREEN_W - x);
+        const clip_y1: i32 = @min(self.tile_h, CONF.SCREEN_H - y);
+
+        if (clip_x0 >= clip_x1 or clip_y0 >= clip_y1) return;
+
+        const clip_x0_usize: usize = @intCast(clip_x0);
+        const clip_x1_usize: usize = @intCast(clip_x1);
+        const clip_y0_usize: usize = @intCast(clip_y0);
+        const clip_y1_usize: usize = @intCast(clip_y1);
+
+        var row: usize = clip_y0_usize;
+        while (row < clip_y1_usize) : (row += 1) {
+            const dst_y: usize = @intCast(y + @as(i32, @intCast(row)));
+            const dst_row_base = dst_y * screen_w_usize;
+            const src_row_base = frame_base + row * tile_w_usize;
+
+            const spans_start = self.row_span_offsets[row_base + row];
+            const spans_end = self.row_span_offsets[row_base + row + 1];
+            var si: usize = spans_start;
+            while (si < spans_end) : (si += 1) {
+                const span = self.spans[si];
+                const span_start: usize = @max(clip_x0_usize, span.start);
+                const span_end: usize = @min(clip_x1_usize, span.end);
+                if (span_start >= span_end) continue;
+
+                const dst_x: usize = @intCast(x + @as(i32, @intCast(span_start)));
+
+                @memcpy(
+                    buffer[dst_row_base + dst_x .. dst_row_base + dst_x + (span_end - span_start)],
+                    self.frame_pixels[src_row_base + span_start .. src_row_base + span_end],
+                );
             }
         }
     }

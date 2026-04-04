@@ -95,6 +95,10 @@ pub const Render = struct {
         buf[index] = (@as(u32, dr) << 16) | (@as(u32, dg) << 8) | @as(u32, db);
     }
 
+    pub fn target_buffer(self: *Render) []u32 {
+        return self.active_buffer_ptr()[0..];
+    }
+
     pub fn put_pixel(self: *Render, x: i32, y: i32, color: u32) void {
         const buf = self.active_buffer_ptr();
         const index: usize = @intCast(y * CONF.SCREEN_W + x);
