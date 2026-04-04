@@ -14,9 +14,9 @@ const SPRITE_ANIM_LEN = 3;
 const SPRITE_FOLLOW_CURSOR_CHANCE = 3;
 const TERRAIN_PATH = "sprites/terrain.bmp";
 const TERRAIN_TILE_SIZE = 32;
-const TERRAIN_ANIM_LEN = 4;
-const TERRAIN_SPLAT_COUNT = 1000;
-const EXAMPLE_BG_COLOR = 0x4B692f;
+const TERRAIN_ANIM_LEN = 8;
+const TERRAIN_SPLAT_COUNT = 4000;
+const EXAMPLE_BG_COLOR = 0x4b692f;
 const TERRAIN_WEAR_DARKEN = 8;
 
 pub fn ExampleScene(comptime Theme: type) type {
