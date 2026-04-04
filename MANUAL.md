@@ -13,8 +13,8 @@ This manual covers installation, requirements, architecture, and practical usage
 Clone and enter project:
 
 ```bash
-git clone https://github.com/w84death/p1x-zig-engine.git
-cd p1x-zig-engine
+git clone https://github.com/w84death/borowik-engine.git
+cd borowik-engine
 ```
 
 ## Build and Run

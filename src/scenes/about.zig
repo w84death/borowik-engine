@@ -11,7 +11,7 @@ pub fn AboutScene() type {
             "",
             "Uses customized fenster software renderer.",
             "Source code available at:",
-            "https://github.com/w84death/p1x-zig-engine",
+            "https://github.com/w84death/borowik-engine",
             "",
             "MIT Licence.",
         };

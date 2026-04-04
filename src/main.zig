@@ -1,7 +1,7 @@
 // *************************************
 // BOROWIK ENGINE
 // by Krzysztof Krystian Jankowski
-// github.com/w84death/p1x-zig-engine
+// github.com/w84death/borowik-engine
 // *************************************
 
 const std = @import("std");
