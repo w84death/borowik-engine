@@ -24,8 +24,8 @@ const Menu = @import("engine/menu.zig").Menu(State, StateMachine);
 
 // Scenes
 const MenuScene = @import("scenes/menu.zig").MenuScene(Menu);
-const AboutScene = @import("scenes/about.zig").AboutScene(State, StateMachine);
-const ExampleScene = @import("scenes/example.zig").ExampleScene(State, StateMachine);
+const AboutScene = @import("scenes/about.zig").AboutScene();
+const ExampleScene = @import("scenes/example.zig").ExampleScene();
 
 pub fn main() void {
     var buf: [CONF.SCREEN_W * CONF.SCREEN_H]u32 = undefined;
@@ -60,8 +60,8 @@ pub fn main() void {
         },
     };
 
-    const core_menu = Menu.init(&fui, &sm, &menu_groups);
-    var menu = MenuScene.init(&fui, core_menu);
+    const core_menu = Menu.init(&fui, &menu_groups);
+    var menu = MenuScene.init(&fui, &sm, core_menu);
     var about = AboutScene.init(&fui);
     var example = ExampleScene.init(&fui);
 
@@ -86,7 +86,7 @@ pub fn main() void {
                 menu.draw(mouse);
             },
             State.example => {
-                example.draw(renderer.dt);
+                example.draw(mouse, renderer.dt);
             },
             State.about => {
                 about.draw();

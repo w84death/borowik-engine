@@ -13,6 +13,8 @@ pub fn Menu(comptime State: type, comptime StateMachine: type) type {
     return struct {
         const Self = @This();
 
+        pub const StateMachineType = StateMachine;
+
         pub const MenuItem = struct {
             text: [:0]const u8,
             color: u32,
@@ -25,18 +27,16 @@ pub fn Menu(comptime State: type, comptime StateMachine: type) type {
         };
 
         fui: *Fui,
-        sm: *StateMachine,
         groups: []const MenuGroup,
 
-        pub fn init(fui: *Fui, sm: *StateMachine, groups: []const MenuGroup) Self {
+        pub fn init(fui: *Fui, groups: []const MenuGroup) Self {
             return Self{
                 .fui = fui,
-                .sm = sm,
                 .groups = groups,
             };
         }
 
-        pub fn draw(self: *Self, mouse: Mouse) void {
+        pub fn draw(self: *Self, sm: *StateMachine, mouse: Mouse) void {
             const cx: i32 = self.fui.pivotX(.center);
             const cy: i32 = self.fui.pivotY(.center) - 192;
 
@@ -50,7 +50,7 @@ pub fn Menu(comptime State: type, comptime StateMachine: type) type {
                 var rect_height: i32 = 8;
                 for (group.items) |item| {
                     if (self.fui.button(cx - 100, y, 200, 32, item.text, item.color, mouse)) {
-                        self.sm.go_to(item.target_state);
+                        sm.go_to(item.target_state);
                     }
                     y += 38;
                     rect_height += 38;

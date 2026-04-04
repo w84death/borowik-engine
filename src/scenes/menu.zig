@@ -11,11 +11,13 @@ pub fn MenuScene(comptime Menu: type) type {
         pub const MenuGroup = Menu.MenuGroup;
 
         fui: *Fui,
+        sm: *Menu.StateMachineType,
         menu: Menu,
 
-        pub fn init(fui: *Fui, menu: Menu) Self {
+        pub fn init(fui: *Fui, sm: *Menu.StateMachineType, menu: Menu) Self {
             return .{
                 .fui = fui,
+                .sm = sm,
                 .menu = menu,
             };
         }
@@ -28,7 +30,7 @@ pub fn MenuScene(comptime Menu: type) type {
             self.fui.draw_text(CONF.THE_NAME, tx, cy, CONF.FONT_BIG, THEME.PRIMARY);
             self.fui.draw_text(CONF.TAG_LINE, cx - self.fui.text_center(CONF.TAG_LINE, CONF.FONT_DEFAULT_SIZE)[0], cy + 64, CONF.FONT_DEFAULT_SIZE, THEME.PRIMARY);
 
-            self.menu.draw(mouse);
+            self.menu.draw(self.sm, mouse);
         }
     };
 }

@@ -2,9 +2,7 @@ const CONF = @import("../engine/config.zig").CONF;
 const THEME = @import("../themes/mil.zig").Theme;
 const Fui = @import("../engine/fui.zig").Fui;
 
-pub fn AboutScene(comptime State: type, comptime StateMachine: type) type {
-    _ = State;
-    _ = StateMachine;
+pub fn AboutScene() type {
     return struct {
         const Self = @This();
 
