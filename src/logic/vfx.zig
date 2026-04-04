@@ -1,6 +1,7 @@
 const std = @import("std");
 const Random = std.Random;
 const CONF = @import("../engine/config.zig").CONF;
+const Render = @import("../engine/render.zig").Render;
 pub const VFX_SNOW_MIN = 4;
 pub const VFX_SNOW_MAX = 64;
 pub const VFX_SNOW_COLOR = 0x022546;
@@ -13,23 +14,21 @@ const Particle = struct {
     speed: f32,
 };
 pub fn Vfx(comptime Theme: type) type {
-    const Fui = @import("../engine/fui.zig").Fui(Theme);
+    _ = Theme;
 
     return struct {
         const Self = @This();
 
         vfx: [32]Particle = undefined,
-        fui: *Fui,
         prng: Random.DefaultPrng,
 
-        pub fn init(fui: *Fui) Self {
+        pub fn init() Self {
             var seed: u64 = undefined;
             std.posix.getrandom(std.mem.asBytes(&seed)) catch {};
             const prng = Random.DefaultPrng.init(seed);
             const vfx: [32]Particle = undefined;
             var self = Self{
                 .vfx = vfx,
-                .fui = fui,
                 .prng = prng,
             };
             for (&self.vfx) |*p| {
@@ -37,15 +36,15 @@ pub fn Vfx(comptime Theme: type) type {
             }
             return self;
         }
-        pub fn draw(self: *Self, color: u32, dt: f32) void {
-            self.drawSnow(color, dt);
+        pub fn draw(self: *Self, renderer: *Render, color: u32, dt: f32) void {
+            self.drawSnow(renderer, color, dt);
         }
-        fn drawSnow(self: *Self, color: u32, dt: f32) void {
+        fn drawSnow(self: *Self, renderer: *Render, color: u32, dt: f32) void {
             for (&self.vfx) |*p| {
                 const x: i32 = @intFromFloat(p.x - p.size * 0.5);
                 const y: i32 = @intFromFloat(p.y - p.size * 0.5);
                 const size: i32 = @intFromFloat(p.size);
-                self.fui.renderer.draw_rect(x, y, size, size, color);
+                renderer.draw_rect(x, y, size, size, color);
                 p.y += p.speed * dt;
                 if (p.y > CONF.SCREEN_H) {
                     self.fillRandomRectangles(p);

@@ -10,6 +10,7 @@ const c = @cImport({
     @cInclude("fenster_audio.h");
 });
 const CONF = @import("engine/config.zig").CONF;
+const Render = @import("engine/render.zig").Render;
 const THEME = @import("themes/mil.zig").Theme;
 //const THEME = @import("themes/smol.zig").Theme;
 //const THEME = @import("themes/shroom.zig").Theme;
@@ -41,8 +42,8 @@ pub fn main() void {
     _ = c.fenster_open(&f);
     defer c.fenster_close(&f);
     var mouse_buttons = MouseButtons.init();
-    var fui = Fui.init(&buf);
-    var renderer = &fui.renderer;
+    var renderer = Render.init(&buf);
+    var fui = Fui.init();
     var sm = StateMachine.init(State.main_menu);
     var fps_text_buf: [32]u8 = undefined;
     var esc_lock = false;
@@ -67,6 +68,7 @@ pub fn main() void {
     var menu = MenuScene.init(&fui, &sm, core_menu);
     var about = AboutScene.init(&fui);
     var example = ExampleScene.init(&fui);
+    defer example.deinit();
 
     while (c.fenster_loop(&f) == 0) {
         sm.update();
@@ -86,13 +88,13 @@ pub fn main() void {
         // State switcher
         switch (sm.current) {
             State.main_menu => {
-                menu.draw(mouse);
+                menu.draw(&renderer, mouse);
             },
             State.example => {
-                example.draw(mouse, renderer.dt);
+                example.draw(mouse, renderer.dt, &renderer);
             },
             State.about => {
-                about.draw();
+                about.draw(&renderer);
             },
             State.quit => {
                 break;
@@ -100,16 +102,16 @@ pub fn main() void {
         }
 
         // Top global navigation
-        if (!sm.is(State.main_menu) and fui.button(fui.pivotX(.top_left), fui.pivotY(.top_left), 120, 32, "< Menu", THEME.MENU_SECONDARY_COLOR, THEME.MENU_HIGHLIGHT_COLOR, mouse)) {
+        if (!sm.is(State.main_menu) and fui.button(&renderer, fui.pivotX(.top_left), fui.pivotY(.top_left), 120, 32, "< Menu", THEME.MENU_SECONDARY_COLOR, THEME.MENU_HIGHLIGHT_COLOR, mouse)) {
             sm.go_to(State.main_menu);
         }
 
         // Bottom global info
-        fui.draw_version();
+        fui.draw_version(&renderer);
         const fps: i32 = if (renderer.dt > 0.0) @intFromFloat(@round(1.0 / renderer.dt)) else 0;
         const fps_text = std.fmt.bufPrint(&fps_text_buf, "FPS: {d}", .{fps}) catch "FPS: ?";
-        fui.draw_text(fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
-        fui.draw_cursor_lines(.{ f.x, f.y });
+        fui.draw_text(&renderer, fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
+        fui.draw_cursor_lines(&renderer, .{ f.x, f.y });
         renderer.cap_frame(CONF.TARGET_FPS);
     }
 }

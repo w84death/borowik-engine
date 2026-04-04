@@ -1,6 +1,16 @@
+const std = @import("std");
+const CONF = @import("../engine/config.zig").CONF;
 const Mouse = @import("../engine/mouse.zig").Mouse;
 const Menu = @import("../engine/menu.zig").Menu;
+const Render = @import("../engine/render.zig").Render;
+const Sprite = @import("../engine/sprites.zig").Sprite;
+const SpriteSheet = @import("../engine/sprites.zig").SpriteSheet;
 const StateMachine = @import("../engine/state.zig").StateMachine;
+
+const SPRITE_EXAMPLE_BOROWIK_PATH = "sprites/borowik.bmp";
+const SPRITE_EXAMPLE_TILE_W = 32;
+const SPRITE_EXAMPLE_TILE_H = 32;
+const SPRITE_EXAMPLE_FRAME_DURATION = 0.12;
 
 pub fn ExampleScene(comptime Theme: type) type {
     const Fui = @import("../engine/fui.zig").Fui(Theme);
@@ -16,6 +26,7 @@ pub fn ExampleScene(comptime Theme: type) type {
 
     return struct {
         const Self = @This();
+        const sprite_frames = [_]usize{ 0, 1, 2 };
 
         const action_groups = [_]ActionMenu.MenuGroup{
             .{
@@ -32,45 +43,74 @@ pub fn ExampleScene(comptime Theme: type) type {
         vfx: Vfx,
         action_state: ActionState,
         action_menu: ActionMenu,
+        sprite_sheet: ?SpriteSheet,
+        sprite_anim: ?Sprite,
+        sprite_ready: bool,
         last_yes_no: ?bool = null,
 
         pub fn init(fui: *Fui) Self {
             var self: Self = undefined;
             self.fui = fui;
-            self.vfx = Vfx.init(fui);
+            self.vfx = Vfx.init();
             self.action_state = ActionState.init(Action.none);
             self.action_menu = ActionMenu.init(fui, &action_groups);
+            self.sprite_sheet = null;
+            self.sprite_anim = null;
+            self.sprite_ready = false;
+            if (SpriteSheet.load_bmp_default_transparency(std.heap.c_allocator, SPRITE_EXAMPLE_BOROWIK_PATH, SPRITE_EXAMPLE_TILE_W, SPRITE_EXAMPLE_TILE_H)) |sheet| {
+                self.sprite_sheet = sheet;
+                self.sprite_anim = Sprite.init(&self.sprite_sheet.?, &sprite_frames, SPRITE_EXAMPLE_FRAME_DURATION, true);
+                self.sprite_ready = true;
+            } else |err| {
+                std.log.err("failed to load sprite sheet {s}: {s}", .{ SPRITE_EXAMPLE_BOROWIK_PATH, @errorName(err) });
+            }
             self.last_yes_no = null;
             return self;
         }
 
-        pub fn draw(self: *Self, mouse: Mouse, dt: f32) void {
+        pub fn deinit(self: *Self) void {
+            if (self.sprite_sheet) |*sheet| {
+                sheet.deinit();
+                self.sprite_sheet = null;
+            }
+            self.sprite_anim = null;
+            self.sprite_ready = false;
+        }
+
+        pub fn draw(self: *Self, mouse: Mouse, dt: f32, renderer: *Render) void {
             self.action_state.update();
-            self.vfx.draw(Theme.SECONDARY_COLOR, dt);
+            self.vfx.draw(renderer, Theme.SECONDARY_COLOR, dt);
 
             const title = "Example Scene";
             const tx = self.fui.pivotX(.center) - self.fui.text_center(title, Theme.FONT_MEDIUM)[0];
             const ty = self.fui.pivotY(.center) - 128;
-            self.fui.draw_text(title, tx, ty, Theme.FONT_MEDIUM, Theme.PRIMARY_COLOR);
+            self.fui.draw_text(renderer, title, tx, ty, Theme.FONT_MEDIUM, Theme.PRIMARY_COLOR);
+
+            if (self.sprite_anim) |*sprite| {
+                sprite.update(dt);
+                const sx = self.fui.pivotX(.top_right) - SPRITE_EXAMPLE_TILE_W;
+                const sy = self.fui.pivotY(.top_right) + SPRITE_EXAMPLE_TILE_H;
+                sprite.draw(renderer, sx, sy);
+            }
 
             switch (self.action_state.current) {
                 .info_popup => {
-                    if (self.fui.info_popup("Information popup example", mouse, Theme.POPUP_COLOR) != null) {
+                    if (self.fui.info_popup(renderer, "Information popup example", mouse, Theme.POPUP_COLOR) != null) {
                         self.action_state.go_to(Action.none);
                     }
                 },
                 .yes_no_popup => {
-                    if (self.fui.yes_no_popup("Do you like this popup?", mouse)) |answer| {
+                    if (self.fui.yes_no_popup(renderer, "Do you like this popup?", mouse)) |answer| {
                         self.last_yes_no = answer;
                         self.action_state.go_to(Action.none);
                     }
                 },
                 .reset_effect => {
-                    self.vfx = Vfx.init(self.fui);
+                    self.vfx = Vfx.init();
                     self.action_state.go_to(Action.none);
                 },
                 .none => {
-                    self.action_menu.draw(&self.action_state, mouse);
+                    self.action_menu.draw(renderer, &self.action_state, mouse);
                 },
             }
 
@@ -81,7 +121,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                 "Last choice: Yes"
             else
                 "Last choice: No";
-            self.fui.draw_text(status, mx, ty + 290, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
+            self.fui.draw_text(renderer, status, mx, ty + 290, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
         }
     };
 }

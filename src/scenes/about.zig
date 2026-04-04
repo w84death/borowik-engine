@@ -1,5 +1,6 @@
 pub fn AboutScene(comptime Theme: type) type {
     const Fui = @import("../engine/fui.zig").Fui(Theme);
+    const Render = @import("../engine/render.zig").Render;
 
     return struct {
         const Self = @This();
@@ -21,10 +22,10 @@ pub fn AboutScene(comptime Theme: type) type {
             return Self{ .fui = fui };
         }
 
-        pub fn draw(self: *Self) void {
+        pub fn draw(self: *Self, renderer: *Render) void {
             const px = self.fui.pivotX(.top_left);
             const py = self.fui.pivotY(.top_left);
-            self.fui.draw_text_block(&lines, px, py + 64, Theme.FONT_LINE_HEIGHT, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+            self.fui.draw_text_block(renderer, &lines, px, py + 64, Theme.FONT_LINE_HEIGHT, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
         }
     };
 }

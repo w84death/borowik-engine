@@ -5,6 +5,7 @@
 // *************************************
 
 const Mouse = @import("mouse.zig").Mouse;
+const Render = @import("render.zig").Render;
 
 pub fn Menu(comptime State: type, comptime StateMachine: type, comptime Theme: type) type {
     const Fui = @import("fui.zig").Fui(Theme);
@@ -46,18 +47,18 @@ pub fn Menu(comptime State: type, comptime StateMachine: type, comptime Theme: t
             return h;
         }
 
-        pub fn draw(self: *Self, sm: *StateMachine, mouse: Mouse) void {
+        pub fn draw(self: *Self, renderer: *Render, sm: *StateMachine, mouse: Mouse) void {
             const cx: i32 = self.fui.pivotX(.center);
             const y_start = self.fui.pivotY(.center) - @divFloor(self.height(), 2);
-            self.draw_at(sm, mouse, cx, y_start);
+            self.draw_at(renderer, sm, mouse, cx, y_start);
         }
 
-        pub fn draw_at(self: *Self, sm: *StateMachine, mouse: Mouse, cx: i32, y_start: i32) void {
+        pub fn draw_at(self: *Self, renderer: *Render, sm: *StateMachine, mouse: Mouse, cx: i32, y_start: i32) void {
             var y: i32 = y_start;
             var longest: i32 = 0;
             for (self.groups) |group| {
                 const title_x = cx - self.fui.text_center(group.title, Theme.FONT_DEFAULT)[0];
-                self.fui.draw_text(group.title, title_x, y, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+                self.fui.draw_text(renderer, group.title, title_x, y, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
                 y += Theme.MENU_GROUP_TITLE_HEIGHT;
 
                 const rect_y_start = y - Theme.MENU_FRAME_BASE_HEIGHT;
@@ -65,13 +66,13 @@ pub fn Menu(comptime State: type, comptime StateMachine: type, comptime Theme: t
                 for (group.items) |item| {
                     const width = self.fui.text_length(item.text, Theme.FONT_DEFAULT);
                     if (width > longest) longest = width;
-                    if (self.fui.button(cx - @divFloor(width, 2) - Theme.MENU_BUTTON_X_PADDING, y, width + Theme.MENU_FRAME_X_PADDING, Theme.MENU_ITEM_HEIGHT, item.text, item.normal_color, item.hover_color, mouse)) {
+                    if (self.fui.button(renderer, cx - @divFloor(width, 2) - Theme.MENU_BUTTON_X_PADDING, y, width + Theme.MENU_FRAME_X_PADDING, Theme.MENU_ITEM_HEIGHT, item.text, item.normal_color, item.hover_color, mouse)) {
                         sm.go_to(item.target_state);
                     }
                     y += Theme.MENU_ITEM_STEP;
                     rect_height += Theme.MENU_ITEM_STEP;
                 }
-                self.fui.renderer.draw_rect_lines(cx - @divFloor(longest, 2) - Theme.MENU_FRAME_X_PADDING, rect_y_start, longest + Theme.MENU_FRAME_X_PADDING * 2, rect_height, Theme.SECONDARY_COLOR);
+                renderer.draw_rect_lines(cx - @divFloor(longest, 2) - Theme.MENU_FRAME_X_PADDING, rect_y_start, longest + Theme.MENU_FRAME_X_PADDING * 2, rect_height, Theme.SECONDARY_COLOR);
                 longest = 0;
                 y += Theme.MENU_GROUP_SPACING;
             }
