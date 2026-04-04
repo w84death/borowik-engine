@@ -6,6 +6,27 @@ Simple Zig engine project using the [fenster](https://github.com/zserge/fenster)
 
 See full usage and architecture docs in [MANUAL.md](MANUAL.md).
 
+## Engine Features
+
+- software rendering with `fenster` backend
+- generic state machine (`go_to`, `update`, `is`)
+- reusable menu system (`src/engine/menu.zig`)
+- immediate-mode UI helpers (`Fui`):
+  - text rendering and text block drawing
+  - buttons with hover and click-edge behavior
+  - info popup and yes/no popup
+  - pivot helpers for anchoring UI
+- renderer primitives:
+  - pixel, line, rect, rect outline, transparent rect
+  - horizontal line, circle, flood fill
+  - frame timing (`dt`) and FPS cap
+- mouse input edge detection (`pressed`, `right_pressed`)
+- theme-driven look (`src/themes/mil.zig`):
+  - color palette
+  - menu spacing/sizing constants
+  - UI font scales
+- example VFX scene with interactive popup/menu actions
+
 ## Run
 
 ```
@@ -33,27 +54,6 @@ zig build release-linux
 ```
 zig build release-windows
 ```
-
-## Engine Features
-
-- software rendering with `fenster` backend
-- generic state machine (`go_to`, `update`, `is`)
-- reusable menu system (`src/engine/menu.zig`)
-- immediate-mode UI helpers (`Fui`):
-  - text rendering and text block drawing
-  - buttons with hover and click-edge behavior
-  - info popup and yes/no popup
-  - pivot helpers for anchoring UI
-- renderer primitives:
-  - pixel, line, rect, rect outline, transparent rect
-  - horizontal line, circle, flood fill
-  - frame timing (`dt`) and FPS cap
-- mouse input edge detection (`pressed`, `right_pressed`)
-- theme-driven look (`src/themes/mil.zig`):
-  - color palette
-  - menu spacing/sizing constants
-  - UI font scales
-- example VFX scene with interactive popup/menu actions
 
 ## Credits
 
