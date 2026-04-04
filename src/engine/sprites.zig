@@ -1,5 +1,13 @@
 const std = @import("std");
 const CONF = @import("config.zig").CONF;
+const Render = @import("render.zig").Render;
+
+pub const SpriteError = error{
+    InvalidBmp,
+    UnsupportedBmp,
+    InvalidTileSize,
+    InvalidAnimation,
+};
 
 pub const SpriteSheet = struct {
     allocator: std.mem.Allocator,
@@ -13,38 +21,65 @@ pub const SpriteSheet = struct {
     pixels: []u8,
     transparent_index: u8,
 
-    pub fn load_bmp(
+    pub fn load_bmp_tiled(
         allocator: std.mem.Allocator,
         path: []const u8,
         tile_w: i32,
         tile_h: i32,
         transparent_index: u8,
     ) !SpriteSheet {
+        if (tile_w <= 0 or tile_h <= 0) return SpriteError.InvalidTileSize;
+
         var file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
 
         const source = try file.readToEndAlloc(allocator, CONF.SPRITE_MAX_FILE_BYTES);
         defer allocator.free(source);
 
+        if (source.len < CONF.BMP_FILE_HEADER_SIZE + CONF.BMP_DIB_HEADER_MIN_SIZE) {
+            return SpriteError.InvalidBmp;
+        }
+
+        if (source[0] != CONF.BMP_SIGNATURE_B or source[1] != CONF.BMP_SIGNATURE_M) {
+            return SpriteError.InvalidBmp;
+        }
+
         const pixel_offset = try read_u32_le(source, CONF.BMP_FILE_OFFSET_PIXEL_START);
         const dib_size = try read_u32_le(source, CONF.BMP_FILE_HEADER_SIZE);
 
         const raw_width = try read_i32_le(source, CONF.BMP_DIB_OFFSET_WIDTH);
         const raw_height = try read_i32_le(source, CONF.BMP_DIB_OFFSET_HEIGHT);
+        const planes = try read_u16_le(source, CONF.BMP_DIB_OFFSET_PLANES);
+        const bits_per_pixel = try read_u16_le(source, CONF.BMP_DIB_OFFSET_BITS_PER_PIXEL);
+        const compression = try read_u32_le(source, CONF.BMP_DIB_OFFSET_COMPRESSION);
         const colors_used = try read_u32_le(source, CONF.BMP_DIB_OFFSET_COLORS_USED);
+
+        if (planes != CONF.BMP_REQUIRED_PLANES) return SpriteError.UnsupportedBmp;
+        if (bits_per_pixel != CONF.BMP_REQUIRED_BPP) return SpriteError.UnsupportedBmp;
+        if (compression != CONF.BMP_COMPRESSION_RGB) return SpriteError.UnsupportedBmp;
+        if (raw_width <= 0 or raw_height == 0) return SpriteError.InvalidBmp;
+
         const height = if (raw_height < 0) -raw_height else raw_height;
+        if (@mod(raw_width, tile_w) != 0 or @mod(height, tile_h) != 0) {
+            return SpriteError.InvalidTileSize;
+        }
 
         const width_usize: usize = @intCast(raw_width);
         const height_usize: usize = @intCast(height);
         const row_stride = align_to_4(width_usize);
 
         const palette_count_u32 = if (colors_used == 0) CONF.BMP_DEFAULT_PALETTE_COLORS else colors_used;
+        if (palette_count_u32 > CONF.BMP_DEFAULT_PALETTE_COLORS) return SpriteError.UnsupportedBmp;
 
         const palette_count: usize = @intCast(palette_count_u32);
         const dib_size_usize: usize = @intCast(dib_size);
         const palette_start: usize = CONF.BMP_FILE_HEADER_SIZE + dib_size_usize;
+        const palette_end = palette_start + palette_count * CONF.BMP_PALETTE_ENTRY_SIZE;
+        if (palette_end > source.len) return SpriteError.InvalidBmp;
 
         const pixel_start: usize = @intCast(pixel_offset);
+        const pixel_end = pixel_start + row_stride * height_usize;
+        if (pixel_start >= source.len or pixel_end > source.len) return SpriteError.InvalidBmp;
 
         var palette = [_]u32{0} ** CONF.BMP_DEFAULT_PALETTE_COLORS;
         var i: usize = 0;
@@ -84,13 +119,41 @@ pub const SpriteSheet = struct {
         };
     }
 
+    pub fn load_bmp(
+        allocator: std.mem.Allocator,
+        path: []const u8,
+    ) !SpriteSheet {
+        return load_bmp_with_transparency(allocator, path, CONF.SPRITE_DEFAULT_TRANSPARENT_INDEX);
+    }
+
+    pub fn load_bmp_with_transparency(
+        allocator: std.mem.Allocator,
+        path: []const u8,
+        transparent_index: u8,
+    ) !SpriteSheet {
+        var file = try std.fs.cwd().openFile(path, .{});
+        defer file.close();
+
+        const source = try file.readToEndAlloc(allocator, CONF.SPRITE_MAX_FILE_BYTES);
+        defer allocator.free(source);
+
+        if (source.len < CONF.BMP_FILE_HEADER_SIZE + CONF.BMP_DIB_HEADER_MIN_SIZE) return SpriteError.InvalidBmp;
+        if (source[0] != CONF.BMP_SIGNATURE_B or source[1] != CONF.BMP_SIGNATURE_M) return SpriteError.InvalidBmp;
+
+        const raw_height = try read_i32_le(source, CONF.BMP_DIB_OFFSET_HEIGHT);
+        if (raw_height == 0) return SpriteError.InvalidBmp;
+        const tile_h = if (raw_height < 0) -raw_height else raw_height;
+
+        return load_bmp_tiled(allocator, path, tile_h, tile_h, transparent_index);
+    }
+
     pub fn load_bmp_default_transparency(
         allocator: std.mem.Allocator,
         path: []const u8,
         tile_w: i32,
         tile_h: i32,
     ) !SpriteSheet {
-        return load_bmp(allocator, path, tile_w, tile_h, CONF.SPRITE_DEFAULT_TRANSPARENT_INDEX);
+        return load_bmp_tiled(allocator, path, tile_w, tile_h, CONF.SPRITE_DEFAULT_TRANSPARENT_INDEX);
     }
 
     pub fn deinit(self: *SpriteSheet) void {
@@ -103,11 +166,13 @@ pub const SpriteSheet = struct {
         return cols * rows;
     }
 
-    pub fn draw_frame(self: *const SpriteSheet, renderer: anytype, frame_index: usize, x: i32, y: i32) void {
+    pub fn draw_frame(self: *const SpriteSheet, renderer: *Render, frame_index: usize, x: i32, y: i32) void {
         const cols: usize = @intCast(self.columns);
         const tile_w_usize: usize = @intCast(self.tile_w);
         const tile_h_usize: usize = @intCast(self.tile_h);
         const sheet_w_usize: usize = @intCast(self.width);
+
+        if (frame_index >= self.frame_count()) return;
 
         const frame_x: usize = (frame_index % cols) * tile_w_usize;
         const frame_y: usize = (frame_index / cols) * tile_h_usize;
@@ -135,44 +200,68 @@ pub const SpriteSheet = struct {
 
 pub const Sprite = struct {
     sheet: *const SpriteSheet,
-    frames: []const usize,
+    anim_start: usize,
+    anim_len: usize,
     frame_duration: f32,
     timer: f32 = 0.0,
-    current: usize = 0,
+    current_offset: usize = 0,
     looping: bool = true,
 
-    pub fn init(sheet: *const SpriteSheet, frames: []const usize, frame_duration: f32, looping: bool) Sprite {
+    pub fn init(sheet: *const SpriteSheet, frame_duration: f32) Sprite {
         return .{
             .sheet = sheet,
-            .frames = frames,
+            .anim_start = 0,
+            .anim_len = sheet.frame_count(),
             .frame_duration = frame_duration,
-            .looping = looping,
+            .looping = true,
         };
     }
 
+    pub fn init_range(sheet: *const SpriteSheet, start_frame: usize, frame_count: usize, frame_duration: f32, looping: bool) SpriteError!Sprite {
+        var sprite = Sprite.init(sheet, frame_duration);
+        try sprite.set_animation(start_frame, frame_count, frame_duration, looping);
+        return sprite;
+    }
+
+    pub fn set_animation(self: *Sprite, start_frame: usize, frame_count: usize, frame_duration: f32, looping: bool) SpriteError!void {
+        if (frame_count == 0) return SpriteError.InvalidAnimation;
+        if (start_frame >= self.sheet.frame_count()) return SpriteError.InvalidAnimation;
+        if (start_frame + frame_count > self.sheet.frame_count()) return SpriteError.InvalidAnimation;
+
+        self.anim_start = start_frame;
+        self.anim_len = frame_count;
+        self.frame_duration = frame_duration;
+        self.looping = looping;
+        self.reset();
+    }
+
     pub fn update(self: *Sprite, dt: f32) void {
-        if (self.frames.len <= 1 or self.frame_duration <= 0.0) return;
+        if (self.anim_len <= 1 or self.frame_duration <= 0.0) return;
 
         self.timer += dt;
         while (self.timer >= self.frame_duration) {
             self.timer -= self.frame_duration;
-            if (self.current + 1 < self.frames.len) {
-                self.current += 1;
+            if (self.current_offset + 1 < self.anim_len) {
+                self.current_offset += 1;
             } else if (self.looping) {
-                self.current = 0;
+                self.current_offset = 0;
             } else {
                 break;
             }
         }
     }
 
-    pub fn draw(self: *const Sprite, renderer: anytype, x: i32, y: i32) void {
-        self.sheet.draw_frame(renderer, self.frames[self.current], x, y);
+    pub fn draw(self: *const Sprite, renderer: *Render, x: i32, y: i32) void {
+        self.sheet.draw_frame(renderer, self.current_frame(), x, y);
     }
 
     pub fn reset(self: *Sprite) void {
         self.timer = 0.0;
-        self.current = 0;
+        self.current_offset = 0;
+    }
+
+    pub fn current_frame(self: *const Sprite) usize {
+        return self.anim_start + self.current_offset;
     }
 };
 
@@ -180,18 +269,20 @@ fn align_to_4(value: usize) usize {
     return (value + 3) & ~@as(usize, 3);
 }
 
-fn read_u16_le(data: []const u8, offset: usize) !u16 {
+fn read_u16_le(data: []const u8, offset: usize) SpriteError!u16 {
+    if (offset + 2 > data.len) return SpriteError.InvalidBmp;
     return @as(u16, data[offset]) | (@as(u16, data[offset + 1]) << 8);
 }
 
-fn read_u32_le(data: []const u8, offset: usize) !u32 {
+fn read_u32_le(data: []const u8, offset: usize) SpriteError!u32 {
+    if (offset + 4 > data.len) return SpriteError.InvalidBmp;
     return @as(u32, data[offset]) |
         (@as(u32, data[offset + 1]) << 8) |
         (@as(u32, data[offset + 2]) << 16) |
         (@as(u32, data[offset + 3]) << 24);
 }
 
-fn read_i32_le(data: []const u8, offset: usize) !i32 {
+fn read_i32_le(data: []const u8, offset: usize) SpriteError!i32 {
     const value = try read_u32_le(data, offset);
     return @bitCast(value);
 }

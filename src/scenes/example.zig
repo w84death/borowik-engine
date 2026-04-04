@@ -1,5 +1,4 @@
 const std = @import("std");
-const CONF = @import("../engine/config.zig").CONF;
 const Mouse = @import("../engine/mouse.zig").Mouse;
 const Menu = @import("../engine/menu.zig").Menu;
 const Render = @import("../engine/render.zig").Render;
@@ -25,7 +24,6 @@ pub fn ExampleScene(comptime Theme: type) type {
 
     return struct {
         const Self = @This();
-        const sprite_frames = [_]usize{ 0, 1, 2 };
 
         const action_groups = [_]ActionMenu.MenuGroup{
             .{
@@ -54,9 +52,10 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.action_menu = ActionMenu.init(fui, &action_groups);
             self.sprite_sheet = null;
             self.sprite_anim = null;
-            if (SpriteSheet.load_bmp_default_transparency(std.heap.c_allocator, SPRITE_PATH, SPRITE_SIZE, SPRITE_SIZE)) |sheet| {
+            if (SpriteSheet.load_bmp(std.heap.c_allocator, SPRITE_PATH)) |sheet| {
                 self.sprite_sheet = sheet;
-                self.sprite_anim = Sprite.init(&self.sprite_sheet.?, &sprite_frames, SPRITE_FRAME_DURATION, true);
+                self.sprite_anim = Sprite.init(&self.sprite_sheet.?, SPRITE_FRAME_DURATION);
+                self.sprite_anim.?.set_animation(0, 3, SPRITE_FRAME_DURATION, true) catch {};
             } else |err| {
                 std.log.err("failed to load sprite sheet {s}: {s}", .{ SPRITE_PATH, @errorName(err) });
             }
@@ -84,7 +83,7 @@ pub fn ExampleScene(comptime Theme: type) type {
             if (self.sprite_anim) |*sprite| {
                 sprite.update(dt);
                 const sx = self.fui.pivotX(.top_right) - SPRITE_SIZE;
-                const sy = self.fui.pivotY(.top_right) + SPRITE_SIZE;
+                const sy = self.fui.pivotY(.top_right);
                 sprite.draw(renderer, sx, sy);
             }
 
