@@ -54,10 +54,10 @@ pub fn build(b: *std.Build) void {
 
     if (b.args) |args| run_cmd.addArgs(args);
 
-    const release_linux_step = b.step("release-linux", "Build Linux host target (ReleaseSmall + UPX)");
+    const release_linux_step = b.step("release-linux", "Build Linux host target (ReleaseFast + UPX)");
     const host_target = target;
 
-    const release_windows_step = b.step("release-windows", "Build Windows 32/64 (ReleaseSmall + UPX)");
+    const release_windows_step = b.step("release-windows", "Build Windows 32/64 (ReleaseFast + UPX)");
     const windows_matrix = [_]struct {
         arch: std.Target.Cpu.Arch,
         os: std.Target.Os.Tag,
@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) void {
         };
 
         const release_name = b.fmt("{s}-{s}", .{ filename, host_suffix });
-        const release_exe = addAppExe(b, release_name, host_target, .ReleaseSmall);
+        const release_exe = addAppExe(b, release_name, host_target, .ReleaseFast);
         const release_install = b.addInstallArtifact(release_exe, .{});
 
         const release_install_path = b.getInstallPath(.bin, release_name);
@@ -98,7 +98,7 @@ pub fn build(b: *std.Build) void {
         });
 
         const release_name = b.fmt("{s}-{s}", .{ filename, entry.suffix });
-        const release_exe = addAppExe(b, release_name, matrix_target, .ReleaseSmall);
+        const release_exe = addAppExe(b, release_name, matrix_target, .ReleaseFast);
         const release_install = b.addInstallArtifact(release_exe, .{});
 
         const release_binary_name = b.fmt("{s}{s}", .{

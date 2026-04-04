@@ -24,7 +24,8 @@ pub fn ExampleScene(comptime Theme: type) type {
         yes_no_popup,
         toggle_vfx,
         spawn_sprite,
-        spawn_50_sprites,
+        spawn_100_sprites,
+        spawn_10k_sprites,
     };
     const ActionState = StateMachine(Action);
     const ActionMenu = Menu(Action, ActionState, Theme);
@@ -44,8 +45,9 @@ pub fn ExampleScene(comptime Theme: type) type {
                     .{ .text = "Info Popup", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.info_popup },
                     .{ .text = "Ask Yes/No", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.yes_no_popup },
                     .{ .text = "Toggle VFX", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_vfx },
-                    .{ .text = "Spawn Sprite", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_sprite },
-                    .{ .text = "Spawn 50 sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_50_sprites },
+                    .{ .text = "Spawn 1 Sprite", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_sprite },
+                    .{ .text = "Spawn 100 sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_100_sprites },
+                    .{ .text = "Spawn 10K sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_10k_sprites },
                 },
             },
         };
@@ -55,7 +57,7 @@ pub fn ExampleScene(comptime Theme: type) type {
         vfx: Vfx,
         action_state: ActionState,
         action_menu: ActionMenu,
-        sprite_sheet: ?SpriteSheet,
+        sprite_sheet: ?*SpriteSheet,
         sprites: std.ArrayListUnmanaged(SpriteInstance),
         prng: std.Random.DefaultPrng,
         vfx_enabled: bool,
@@ -79,10 +81,13 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.terrain_ready = false;
 
             if (SpriteSheet.load_bmp(self.allocator, SPRITE_PATH)) |sheet| {
-                self.sprite_sheet = sheet;
-                self.spawn_random_sprite() catch |err| {
-                    std.log.err("failed to spawn initial sprite: {s}", .{@errorName(err)});
+                const sheet_ptr = self.allocator.create(SpriteSheet) catch |err| {
+                    std.log.err("failed to allocate sprite sheet: {s}", .{@errorName(err)});
+                    self.last_yes_no = null;
+                    return self;
                 };
+                sheet_ptr.* = sheet;
+                self.sprite_sheet = sheet_ptr;
             } else |err| {
                 std.log.err("failed to load sprite sheet {s}: {s}", .{ SPRITE_PATH, @errorName(err) });
             }
@@ -92,8 +97,9 @@ pub fn ExampleScene(comptime Theme: type) type {
 
         pub fn deinit(self: *Self) void {
             self.sprites.deinit(self.allocator);
-            if (self.sprite_sheet) |*sheet| {
+            if (self.sprite_sheet) |sheet| {
                 sheet.deinit();
+                self.allocator.destroy(sheet);
                 self.sprite_sheet = null;
             }
         }
@@ -157,9 +163,19 @@ pub fn ExampleScene(comptime Theme: type) type {
                     };
                     self.action_state.go_to(Action.none);
                 },
-                .spawn_50_sprites => {
+                .spawn_100_sprites => {
                     var i: usize = 0;
-                    while (i < 50) : (i += 1) {
+                    while (i < 100) : (i += 1) {
+                        self.spawn_random_sprite() catch |err| {
+                            std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
+                            break;
+                        };
+                    }
+                    self.action_state.go_to(Action.none);
+                },
+                .spawn_10k_sprites => {
+                    var i: usize = 0;
+                    while (i < 10000) : (i += 1) {
                         self.spawn_random_sprite() catch |err| {
                             std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
                             break;
@@ -183,14 +199,14 @@ pub fn ExampleScene(comptime Theme: type) type {
 
             var count_buf: [32]u8 = undefined;
             const count_text = std.fmt.bufPrint(&count_buf, "Sprites: {d}", .{self.sprites.items.len}) catch "Sprites: ?";
-            self.fui.draw_text(renderer, count_text, self.fui.pivotX(.top_right) - 200, self.fui.pivotY(.top_right), Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+            self.fui.draw_text(renderer, count_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right), Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
 
             const vfx_text: [:0]const u8 = if (self.vfx_enabled) "VFX: ON" else "VFX: OFF";
             self.fui.draw_text(renderer, vfx_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 24, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
         }
 
         fn spawn_random_sprite(self: *Self) !void {
-            const sheet = if (self.sprite_sheet) |*s| s else return;
+            const sheet = self.sprite_sheet orelse return;
 
             const rand = self.prng.random();
             var sprite = Sprite.init(sheet, SPRITE_FRAME_DURATION);
