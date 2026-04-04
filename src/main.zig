@@ -10,9 +10,10 @@ const c = @cImport({
     @cInclude("fenster_audio.h");
 });
 const CONF = @import("engine/config.zig").CONF;
+const THEME = @import("themes/mil.zig").Theme;
 //const THEME = @import("themes/smol.zig").Theme;
-//const THEME = @import("themes/mil.zig").Theme;
-const THEME = @import("themes/shroom.zig").Theme;
+//const THEME = @import("themes/shroom.zig").Theme;
+//const THEME = @import("themes/gray.zig").Theme;
 const Fui = @import("engine/fui.zig").Fui(THEME);
 const MouseButtons = @import("engine/mouse.zig").MouseButtons;
 const State = enum {

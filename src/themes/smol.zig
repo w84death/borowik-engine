@@ -20,7 +20,7 @@ pub const Theme = struct {
     pub const POPUP_COLOR = 0xFFFFFF;
     pub const POPUP_MSG_COLOR = 0x2456D3;
 
-    pub const SHADOW_COLOR = 0x203A76;
+    pub const SHADOW_COLOR = 0x709AC6;
     pub const LIGHT_COLOR = 0xDCEBFF;
 
     pub const MENU_TEXT_COLOR = 0x1D376E;
@@ -43,6 +43,7 @@ pub const Theme = struct {
 
     pub const PIVOT_PADDING = 14;
 
+    pub const FONT_LINE_HEIGHT = 16;
     pub const FONT_DEFAULT = 1;
     pub const FONT_MEDIUM = 2;
     pub const FONT_BIG = 4;

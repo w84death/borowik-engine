@@ -10,11 +10,11 @@ pub const Theme = struct {
     pub const SECONDARY_COLOR = 0x5E7F67;
     pub const CROSSHAIR_COLOR = 0x74D84A;
 
-    pub const YES_COLOR = 0x6DE35A;
-    pub const NO_COLOR = 0xB35A4F;
+    pub const YES_COLOR = 0x3D6145;
+    pub const NO_COLOR = 0x6A3A35;
     pub const OK_COLOR = 0x1A2A1E;
-    pub const MENU_YES_COLOR = 0x3D6145;
-    pub const MENU_NO_COLOR = 0x6A3A35;
+    pub const MENU_YES_COLOR = 0x6DE35A;
+    pub const MENU_NO_COLOR = 0xB35A4F;
     pub const MENU_OK_COLOR = 0x3A4B6A;
 
     pub const POPUP_COLOR = 0x101A15;
@@ -43,6 +43,7 @@ pub const Theme = struct {
 
     pub const PIVOT_PADDING = 24;
 
+    pub const FONT_LINE_HEIGHT = 24;
     pub const FONT_DEFAULT = 2;
     pub const FONT_MEDIUM = 4;
     pub const FONT_BIG = 8;
