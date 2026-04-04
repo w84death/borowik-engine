@@ -41,6 +41,7 @@ pub fn Menu(comptime State: type, comptime StateMachine: type) type {
             const cy: i32 = self.fui.pivotY(.center) - 192;
 
             var y: i32 = cy + 128;
+            var longest: i32 = 0;
             for (self.groups) |group| {
                 const title_x = cx - self.fui.text_center(group.title, CONF.FONT_DEFAULT_SIZE)[0];
                 self.fui.draw_text(group.title, title_x, y, CONF.FONT_DEFAULT_SIZE, THEME.PRIMARY);
@@ -49,13 +50,16 @@ pub fn Menu(comptime State: type, comptime StateMachine: type) type {
                 const rect_y_start = y - 8;
                 var rect_height: i32 = 8;
                 for (group.items) |item| {
-                    if (self.fui.button(cx - 100, y, 200, 32, item.text, item.color, mouse)) {
+                    const width = self.fui.text_length(item.text, CONF.FONT_DEFAULT_SIZE);
+                    if (width > longest) longest = width;
+                    if (self.fui.button(cx - @divFloor(width, 2) - 8, y, width + 16, 32, item.text, item.color, mouse)) {
                         sm.go_to(item.target_state);
                     }
                     y += 38;
                     rect_height += 38;
                 }
-                self.fui.renderer.draw_rect_lines(cx - 110, rect_y_start, 220, rect_height, THEME.SECONDARY);
+                self.fui.renderer.draw_rect_lines(cx - @divFloor(longest, 2) - 16, rect_y_start, longest + 32, rect_height, THEME.SECONDARY);
+                longest = 0;
                 y += 16;
             }
         }

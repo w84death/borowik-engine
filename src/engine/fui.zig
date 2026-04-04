@@ -80,12 +80,10 @@ pub const Fui = struct {
     pub fn text_length(self: *Fui, s: []const u8, scale: i32) i32 {
         _ = self;
         const len: i32 = @intCast(s.len);
-        return len * scale * CONF.FONT_WIDTH + (len - 1) * 2;
+        return len * scale * CONF.FONT_WIDTH + (len - 2) * 2;
     }
     pub fn text_center(self: *Fui, s: []const u8, scale: i32) Vec2 {
-        _ = self;
-        const len: i32 = @intCast(s.len);
-        return vec2(@divFloor(len * scale * CONF.FONT_WIDTH + (len - 2) * scale, 2), @divFloor(scale * CONF.FONT_HEIGHT, 2));
+        return vec2(@divFloor(self.text_length(s, scale), 2), @divFloor(scale * CONF.FONT_HEIGHT, 2));
     }
     pub fn draw_cursor_lines(self: *Fui, mouse: Vec2) void {
         self.renderer.draw_line(mouse[0], 0, mouse[0], CONF.SCREEN_H, THEME.CROSSHAIR);
