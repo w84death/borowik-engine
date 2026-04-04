@@ -13,6 +13,7 @@ const SPRITE_FRAME_DURATION = 0.12;
 const SPRITE_ANIM_LEN = 3;
 const SPRITE_FOLLOW_CURSOR_CHANCE = 3;
 const EXAMPLE_BG_COLOR = 0x4B692f;
+const TERRAIN_WEAR_DARKEN = 8;
 
 pub fn ExampleScene(comptime Theme: type) type {
     const Fui = @import("../engine/fui.zig").Fui(Theme);
@@ -58,6 +59,7 @@ pub fn ExampleScene(comptime Theme: type) type {
         sprites: std.ArrayListUnmanaged(SpriteInstance),
         prng: std.Random.DefaultPrng,
         vfx_enabled: bool,
+        terrain_ready: bool,
         last_yes_no: ?bool = null,
 
         pub fn init(allocator: std.mem.Allocator, fui: *Fui) Self {
@@ -74,6 +76,7 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.sprites = .{};
             self.prng = std.Random.DefaultPrng.init(seed);
             self.vfx_enabled = false;
+            self.terrain_ready = false;
 
             if (SpriteSheet.load_bmp(self.allocator, SPRITE_PATH)) |sheet| {
                 self.sprite_sheet = sheet;
@@ -97,7 +100,14 @@ pub fn ExampleScene(comptime Theme: type) type {
 
         pub fn draw(self: *Self, mouse: Mouse, dt: f32, renderer: *Render) void {
             self.action_state.update();
-            renderer.clear_background(EXAMPLE_BG_COLOR);
+
+            if (!self.terrain_ready) {
+                renderer.clear_buffer(.terrain, EXAMPLE_BG_COLOR);
+                self.terrain_ready = true;
+            }
+            renderer.copy_buffer(.terrain, .frame);
+            renderer.set_target(.frame);
+
             if (self.vfx_enabled) {
                 self.vfx.draw(renderer, Theme.SECONDARY_COLOR, dt);
             }
@@ -121,6 +131,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                     if (test_y > 0 and test_y < CONF.SCREEN_W - SPRITE_SIZE) instance.y = test_y;
                 }
                 instance.sprite.update(dt);
+                renderer.darken_buffer_pixel(.terrain, instance.x + @divFloor(SPRITE_SIZE, 2), instance.y + @divFloor(SPRITE_SIZE, 2), TERRAIN_WEAR_DARKEN);
                 instance.sprite.draw(renderer, instance.x, instance.y);
             }
 

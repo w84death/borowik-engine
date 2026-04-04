@@ -112,6 +112,7 @@ pub fn main() void {
         const fps_text = std.fmt.bufPrint(&fps_text_buf, "FPS: {d}", .{fps}) catch "FPS: ?";
         fui.draw_text(&renderer, fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
         fui.draw_cursor_lines(&renderer, .{ f.x, f.y });
+        renderer.present();
         renderer.cap_frame(CONF.TARGET_FPS);
     }
 }

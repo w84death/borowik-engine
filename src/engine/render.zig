@@ -9,7 +9,14 @@ const c = @cImport({
 });
 const CONF = @import("config.zig").CONF;
 
+pub const Framebuffer = enum {
+    frame,
+    terrain,
+};
+
 pub const Render = struct {
+    const PIXELS_COUNT = CONF.SCREEN_W * CONF.SCREEN_H;
+
     const ClippedRect = struct {
         x: i32,
         y: i32,
@@ -17,12 +24,21 @@ pub const Render = struct {
         h: i32,
     };
 
-    buf: *[CONF.SCREEN_W * CONF.SCREEN_H]u32,
+    window_buf: *[PIXELS_COUNT]u32,
+    frame_buf: [PIXELS_COUNT]u32,
+    terrain_buf: [PIXELS_COUNT]u32,
+    target: Framebuffer = .frame,
     dt: f32 = 0.0,
     now: i64,
 
-    pub fn init(buf: *[CONF.SCREEN_W * CONF.SCREEN_H]u32) Render {
-        return .{ .buf = buf, .now = c.fenster_time() };
+    pub fn init(buf: *[PIXELS_COUNT]u32) Render {
+        return .{
+            .window_buf = buf,
+            .frame_buf = [_]u32{0} ** PIXELS_COUNT,
+            .terrain_buf = [_]u32{0} ** PIXELS_COUNT,
+            .target = .frame,
+            .now = c.fenster_time(),
+        };
     }
 
     pub fn begin_frame(self: *Render) void {
@@ -40,20 +56,59 @@ pub const Render = struct {
         }
     }
 
-    pub fn put_pixel(self: *Render, x: i32, y: i32, color: u32) void {
+    pub fn present(self: *Render) void {
+        @memcpy(self.window_buf[0..], self.frame_buf[0..]);
+    }
+
+    pub fn set_target(self: *Render, target: Framebuffer) void {
+        self.target = target;
+    }
+
+    pub fn clear_buffer(self: *Render, target: Framebuffer, color: u32) void {
+        const buf = self.buffer_ptr(target);
+        for (buf, 0..) |_, i| {
+            buf[i] = color;
+        }
+    }
+
+    pub fn copy_buffer(self: *Render, src: Framebuffer, dst: Framebuffer) void {
+        const src_buf = self.buffer_ptr(src);
+        const dst_buf = self.buffer_ptr(dst);
+        @memcpy(dst_buf[0..], src_buf[0..]);
+    }
+
+    pub fn darken_buffer_pixel(self: *Render, target: Framebuffer, x: i32, y: i32, amount: u8) void {
+        if (x < 0 or y < 0 or x >= CONF.SCREEN_W or y >= CONF.SCREEN_H) return;
+
+        const buf = self.buffer_ptr(target);
         const index: usize = @intCast(y * CONF.SCREEN_W + x);
-        self.buf[index] = color;
+        const color = buf[index];
+
+        const r: u8 = @intCast((color >> 16) & 0xFF);
+        const g: u8 = @intCast((color >> 8) & 0xFF);
+        const b: u8 = @intCast(color & 0xFF);
+
+        const dr = sub_sat(r, amount);
+        const dg = sub_sat(g, amount);
+        const db = sub_sat(b, amount);
+
+        buf[index] = (@as(u32, dr) << 16) | (@as(u32, dg) << 8) | @as(u32, db);
+    }
+
+    pub fn put_pixel(self: *Render, x: i32, y: i32, color: u32) void {
+        const buf = self.active_buffer_ptr();
+        const index: usize = @intCast(y * CONF.SCREEN_W + x);
+        buf[index] = color;
     }
 
     pub fn get_pixel(self: *Render, x: i32, y: i32) u32 {
-        const index: u32 = @intCast(y * CONF.SCREEN_W + x);
-        return self.buf[index];
+        const buf = self.active_buffer_ptr();
+        const index: usize = @intCast(y * CONF.SCREEN_W + x);
+        return buf[index];
     }
 
     pub fn clear_background(self: *Render, color: u32) void {
-        for (self.buf, 0..) |_, i| {
-            self.buf[i] = color;
-        }
+        self.clear_buffer(self.target, color);
     }
 
     pub fn draw_line(self: *Render, x0: i32, y0: i32, x1: i32, y1: i32, color: u32) void {
@@ -141,7 +196,7 @@ pub const Render = struct {
                     const dist = @as(i64, dx) * dx + @as(i64, dy) * dy;
                     if (dist <= rr) {
                         const index = (@as(usize, @intCast(py)) * CONF.SCREEN_W) + @as(usize, @intCast(px));
-                        self.buf[index] = color;
+                        self.active_buffer_ptr()[index] = color;
                     }
                 }
             }
@@ -190,5 +245,21 @@ pub const Render = struct {
         if (rw <= 0 or rh <= 0) return null;
 
         return ClippedRect{ .x = rx, .y = ry, .w = rw, .h = rh };
+    }
+
+    fn active_buffer_ptr(self: *Render) *[PIXELS_COUNT]u32 {
+        return self.buffer_ptr(self.target);
+    }
+
+    fn buffer_ptr(self: *Render, target: Framebuffer) *[PIXELS_COUNT]u32 {
+        return switch (target) {
+            .frame => &self.frame_buf,
+            .terrain => &self.terrain_buf,
+        };
+    }
+
+    fn sub_sat(a: u8, b: u8) u8 {
+        if (a <= b) return 0;
+        return a - b;
     }
 };
