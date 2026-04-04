@@ -11,11 +11,15 @@ const SPRITE_PATH = "sprites/borowik.bmp";
 const SPRITE_SIZE = 32;
 const SPRITE_FRAME_DURATION = 0.12;
 const SPRITE_ANIM_LEN = 3;
-const SPRITE_FOLLOW_CURSOR_CHANCE = 3;
+const SPRITE_SPEED_MIN = 18.0;
+const SPRITE_SPEED_MAX = 52.0;
+const SPRITE_DIR_HOLD_MIN = 0.4;
+const SPRITE_DIR_HOLD_MAX = 1.5;
+const SPRITE_CURSOR_TURN_CHANCE = 72;
 const TERRAIN_PATH = "sprites/terrain.bmp";
 const TERRAIN_TILE_SIZE = 32;
 const TERRAIN_ANIM_LEN = 8;
-const TERRAIN_SPLAT_COUNT = 4000;
+const TERRAIN_SPLAT_COUNT = 1000;
 const EXAMPLE_BG_COLOR = 0x4b692f;
 const TERRAIN_WEAR_DARKEN = 8;
 
@@ -38,8 +42,11 @@ pub fn ExampleScene(comptime Theme: type) type {
         const Self = @This();
         const SpriteInstance = struct {
             sprite: Sprite,
-            x: i32,
-            y: i32,
+            x: f32,
+            y: f32,
+            heading: f32,
+            speed: f32,
+            dir_timer: f32,
         };
 
         const action_groups = [_]ActionMenu.MenuGroup{
@@ -149,20 +156,48 @@ pub fn ExampleScene(comptime Theme: type) type {
 
             const rand = self.prng.random();
             for (self.sprites.items) |*instance| {
-                if (rand.intRangeAtMost(i32, 0, 10) < SPRITE_FOLLOW_CURSOR_CHANCE) {
-                    if (mouse.x > instance.x) instance.x += rand.intRangeAtMost(i32, 0, 2);
-                    if (mouse.x < instance.x) instance.x -= rand.intRangeAtMost(i32, 0, 2);
-                    if (mouse.y > instance.y) instance.y += rand.intRangeAtMost(i32, 0, 2);
-                    if (mouse.y < instance.y) instance.y -= rand.intRangeAtMost(i32, 0, 2);
-                } else {
-                    const test_x = instance.x + rand.intRangeAtMost(i32, -2, 2);
-                    if (test_x > 0 and test_x < CONF.SCREEN_W - SPRITE_SIZE) instance.x = test_x;
-                    const test_y = instance.y + rand.intRangeAtMost(i32, -2, 2);
-                    if (test_y > 0 and test_y < CONF.SCREEN_W - SPRITE_SIZE) instance.y = test_y;
+                instance.dir_timer -= dt;
+                if (instance.dir_timer <= 0.0) {
+                    instance.dir_timer = random_range_f32(&rand, SPRITE_DIR_HOLD_MIN, SPRITE_DIR_HOLD_MAX);
+
+                    if (rand.intRangeAtMost(u32, 0, 99) < SPRITE_CURSOR_TURN_CHANCE) {
+                        const center_x = instance.x + @as(f32, @floatFromInt(@divFloor(SPRITE_SIZE, 2)));
+                        const center_y = instance.y + @as(f32, @floatFromInt(@divFloor(SPRITE_SIZE, 2)));
+                        const to_mouse_x = @as(f32, @floatFromInt(mouse.x)) - center_x;
+                        const to_mouse_y = @as(f32, @floatFromInt(mouse.y)) - center_y;
+                        if (to_mouse_x != 0.0 or to_mouse_y != 0.0) {
+                            instance.heading = std.math.atan2(to_mouse_y, to_mouse_x);
+                        }
+                    } else {
+                        instance.heading = random_range_f32(&rand, 0.0, @as(f32, std.math.pi * 2.0));
+                    }
                 }
+
+                instance.x += std.math.cos(instance.heading) * instance.speed * dt;
+                instance.y += std.math.sin(instance.heading) * instance.speed * dt;
+
+                const max_x_f: f32 = @floatFromInt(@max(0, CONF.SCREEN_W - SPRITE_SIZE));
+                const max_y_f: f32 = @floatFromInt(@max(0, CONF.SCREEN_H - SPRITE_SIZE));
+                if (instance.x < 0.0) {
+                    instance.x = 0.0;
+                    instance.heading = std.math.pi - instance.heading;
+                } else if (instance.x > max_x_f) {
+                    instance.x = max_x_f;
+                    instance.heading = std.math.pi - instance.heading;
+                }
+                if (instance.y < 0.0) {
+                    instance.y = 0.0;
+                    instance.heading = -instance.heading;
+                } else if (instance.y > max_y_f) {
+                    instance.y = max_y_f;
+                    instance.heading = -instance.heading;
+                }
+
                 instance.sprite.update(dt);
-                renderer.darken_buffer_pixel(.terrain, instance.x + @divFloor(SPRITE_SIZE, 2), instance.y + @divFloor(SPRITE_SIZE, 2), TERRAIN_WEAR_DARKEN);
-                instance.sprite.draw(renderer, instance.x, instance.y);
+                const draw_x: i32 = @intFromFloat(instance.x);
+                const draw_y: i32 = @intFromFloat(instance.y);
+                renderer.darken_buffer_pixel(.terrain, draw_x + @divFloor(SPRITE_SIZE, 2), draw_y + @divFloor(SPRITE_SIZE, 2), TERRAIN_WEAR_DARKEN);
+                instance.sprite.draw(renderer, draw_x, draw_y);
             }
 
             switch (self.action_state.current) {
@@ -243,7 +278,18 @@ pub fn ExampleScene(comptime Theme: type) type {
             const x = rand.intRangeAtMost(i32, 0, max_x);
             const y = rand.intRangeAtMost(i32, 0, max_y);
 
-            try self.sprites.append(self.allocator, .{ .sprite = sprite, .x = x, .y = y });
+            try self.sprites.append(self.allocator, .{
+                .sprite = sprite,
+                .x = @floatFromInt(x),
+                .y = @floatFromInt(y),
+                .heading = random_range_f32(&rand, 0.0, @as(f32, std.math.pi * 2.0)),
+                .speed = random_range_f32(&rand, SPRITE_SPEED_MIN, SPRITE_SPEED_MAX),
+                .dir_timer = random_range_f32(&rand, SPRITE_DIR_HOLD_MIN, SPRITE_DIR_HOLD_MAX),
+            });
+        }
+
+        fn random_range_f32(rand: *const std.Random, min: f32, max: f32) f32 {
+            return min + rand.float(f32) * (max - min);
         }
 
         fn init_terrain(self: *Self, renderer: *Render) void {
