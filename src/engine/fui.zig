@@ -33,17 +33,19 @@ pub fn Fui(comptime Theme: type) type {
     return struct {
         const Self = @This();
 
-        pub fn init() Self {
-            return Self{};
+        screen_w: i32,
+        screen_h: i32,
+
+        pub fn init(screen_w: i32, screen_h: i32) Self {
+            return Self{ .screen_w = screen_w, .screen_h = screen_h };
         }
         pub inline fn pivot(self: *const Self, p: Pivot) Vec2 {
-            _ = self;
             return switch (p) {
-                .center => vec2(CONF.SCREEN_W / 2, CONF.SCREEN_H / 2),
+                .center => vec2(@divFloor(self.screen_w, 2), @divFloor(self.screen_h, 2)),
                 .top_left => vec2(Theme.PIVOT_PADDING, Theme.PIVOT_PADDING),
-                .top_right => vec2(CONF.SCREEN_W - Theme.PIVOT_PADDING, Theme.PIVOT_PADDING),
-                .bottom_left => vec2(Theme.PIVOT_PADDING, CONF.SCREEN_H - Theme.PIVOT_PADDING),
-                .bottom_right => vec2(CONF.SCREEN_W - Theme.PIVOT_PADDING, CONF.SCREEN_H - Theme.PIVOT_PADDING),
+                .top_right => vec2(self.screen_w - Theme.PIVOT_PADDING, Theme.PIVOT_PADDING),
+                .bottom_left => vec2(Theme.PIVOT_PADDING, self.screen_h - Theme.PIVOT_PADDING),
+                .bottom_right => vec2(self.screen_w - Theme.PIVOT_PADDING, self.screen_h - Theme.PIVOT_PADDING),
             };
         }
         pub inline fn pivotX(self: *const Self, p: Pivot) i32 {
@@ -93,9 +95,8 @@ pub fn Fui(comptime Theme: type) type {
             return vec2(@divFloor(self.text_length(s, scale), 2), @divFloor(scale * CONF.FONT_HEIGHT, 2));
         }
         pub fn draw_cursor_lines(self: *Self, renderer: *Render, mouse: Vec2) void {
-            _ = self;
-            renderer.draw_line(mouse[0], 0, mouse[0], CONF.SCREEN_H, Theme.CROSSHAIR_COLOR);
-            renderer.draw_line(0, mouse[1], CONF.SCREEN_W, mouse[1], Theme.CROSSHAIR_COLOR);
+            renderer.draw_line(mouse[0], 0, mouse[0], self.screen_h, Theme.CROSSHAIR_COLOR);
+            renderer.draw_line(0, mouse[1], self.screen_w, mouse[1], Theme.CROSSHAIR_COLOR);
         }
         pub fn button(self: *Self, renderer: *Render, x: i32, y: i32, w: i32, h: i32, label: [:0]const u8, normal_color: u32, hover_color: u32, mouse: Mouse) bool {
             const hover: bool = self.check_hover(mouse, Rect.init(w, h, x, y));

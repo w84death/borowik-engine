@@ -1,5 +1,4 @@
 const std = @import("std");
-const CONF = @import("../engine/config.zig").CONF;
 const Mouse = @import("../engine/mouse.zig").Mouse;
 const Render = @import("../engine/render.zig").Render;
 const Sprite = @import("../engine/sprites.zig").Sprite;
@@ -45,6 +44,8 @@ pub const BenchmarkLogic = struct {
     sprite_trails_enabled: bool,
     cursor_follow_enabled: bool,
     simulation_enabled: bool,
+    screen_width: i32,
+    screen_height: i32,
 
     pub fn init(allocator: std.mem.Allocator, renderer: *Render) Self {
         var self: Self = undefined;
@@ -57,6 +58,8 @@ pub const BenchmarkLogic = struct {
         self.sprite_trails_enabled = false;
         self.cursor_follow_enabled = false;
         self.simulation_enabled = true;
+        self.screen_width = renderer.width;
+        self.screen_height = renderer.height;
 
         self.sprite_defs = [_]SpriteDefinition{
             .{
@@ -140,8 +143,8 @@ pub const BenchmarkLogic = struct {
             instance.x += std.math.cos(instance.heading) * instance.speed * dt;
             instance.y += std.math.sin(instance.heading) * instance.speed * dt;
 
-            const max_x_f: f32 = @floatFromInt(@max(0, CONF.SCREEN_W - instance.size));
-            const max_y_f: f32 = @floatFromInt(@max(0, CONF.SCREEN_H - instance.size));
+            const max_x_f: f32 = @floatFromInt(@max(0, self.screen_width - instance.size));
+            const max_y_f: f32 = @floatFromInt(@max(0, self.screen_height - instance.size));
             if (instance.x < 0.0) {
                 instance.x = 0.0;
                 instance.heading = std.math.pi - instance.heading;
@@ -228,8 +231,8 @@ pub const BenchmarkLogic = struct {
         try sprite.set_animation(0, def.sprite_anim_len, def.sprite_anim_dur, true);
         sprite.current_offset = rand.intRangeAtMost(usize, 0, def.sprite_anim_len - 1);
 
-        const max_x = @max(0, CONF.SCREEN_W - def.sprite_size);
-        const max_y = @max(0, CONF.SCREEN_H - def.sprite_size);
+        const max_x = @max(0, self.screen_width - def.sprite_size);
+        const max_y = @max(0, self.screen_height - def.sprite_size);
 
         const x = rand.intRangeAtMost(i32, 0, max_x);
         const y = rand.intRangeAtMost(i32, 0, max_y);
@@ -257,8 +260,8 @@ pub const BenchmarkLogic = struct {
         stamp.set_animation(0, terrain_def.sprite_anim_len, 0.0, true) catch return;
 
         const rand = self.prng.random();
-        const max_x = @max(0, CONF.SCREEN_W - terrain_def.sprite_size);
-        const max_y = @max(0, CONF.SCREEN_H - terrain_def.sprite_size);
+        const max_x = @max(0, self.screen_width - terrain_def.sprite_size);
+        const max_y = @max(0, self.screen_height - terrain_def.sprite_size);
 
         var i: usize = 0;
         while (i < TERRAIN_SPLAT_COUNT) : (i += 1) {

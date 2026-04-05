@@ -1,6 +1,5 @@
 const std = @import("std");
 const Random = std.Random;
-const CONF = @import("../engine/config.zig").CONF;
 const Render = @import("../engine/render.zig").Render;
 pub const VFX_SNOW_MIN = 4;
 pub const VFX_SNOW_MAX = 64;
@@ -22,7 +21,7 @@ pub fn Vfx(comptime Theme: type) type {
         vfx: [32]Particle = undefined,
         prng: Random.DefaultPrng,
 
-        pub fn init() Self {
+        pub fn init(screen_w: i32, screen_h: i32) Self {
             var seed: u64 = undefined;
             std.posix.getrandom(std.mem.asBytes(&seed)) catch {};
             const prng = Random.DefaultPrng.init(seed);
@@ -32,7 +31,7 @@ pub fn Vfx(comptime Theme: type) type {
                 .prng = prng,
             };
             for (&self.vfx) |*p| {
-                self.fillRandomRectangles(p);
+                self.fillRandomRectangles(p, screen_w, screen_h);
             }
             return self;
         }
@@ -46,15 +45,15 @@ pub fn Vfx(comptime Theme: type) type {
                 const size: i32 = @intFromFloat(p.size);
                 renderer.draw_rect(x, y, size, size, color);
                 p.y += p.speed * dt;
-                if (p.y > CONF.SCREEN_H) {
-                    self.fillRandomRectangles(p);
+                if (p.y > @as(f32, @floatFromInt(renderer.height))) {
+                    self.fillRandomRectangles(p, renderer.width, renderer.height);
                 }
             }
         }
-        fn fillRandomRectangles(self: *Self, p: *Particle) void {
+        fn fillRandomRectangles(self: *Self, p: *Particle, width: i32, height: i32) void {
             const rand = self.prng.random();
-            p.x = rand.float(f32) * CONF.SCREEN_W;
-            p.y = -rand.float(f32) * (CONF.SCREEN_H);
+            p.x = rand.float(f32) * @as(f32, @floatFromInt(width));
+            p.y = -rand.float(f32) * @as(f32, @floatFromInt(height));
             p.size = VFX_SNOW_MIN + rand.float(f32) * (VFX_SNOW_MAX - VFX_SNOW_MIN);
             p.speed = VFX_SNOW_SPEED_MIN + (p.size * 0.001) * VFX_SNOW_SPEED_MAX;
         }

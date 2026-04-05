@@ -56,7 +56,7 @@ pub fn ExampleScene(comptime Theme: type) type {
         pub fn init(allocator: std.mem.Allocator, fui: *Fui, renderer: *Render) Self {
             return .{
                 .fui = fui,
-                .vfx = Vfx.init(),
+                .vfx = Vfx.init(renderer.width, renderer.height),
                 .benchmark = Benchmark.init(allocator, renderer),
                 .action_state = ActionState.init(Action.none),
                 .action_menu = ActionMenu.init(fui, &action_groups),
@@ -71,8 +71,6 @@ pub fn ExampleScene(comptime Theme: type) type {
         }
 
         pub fn update(self: *Self, mouse: Mouse, dt: f32, renderer: *Render) void {
-            if (self.ui_visible) self.action_state.update();
-            self.apply_menu_actions();
             self.benchmark.update_simulation(mouse, dt, renderer);
         }
 
@@ -84,6 +82,8 @@ pub fn ExampleScene(comptime Theme: type) type {
             }
             self.handle_top_controls(mouse, renderer);
             self.handle_ui_interactions(mouse, renderer);
+            if (self.ui_visible) self.action_state.update();
+            self.apply_menu_actions();
             self.render_ui(renderer);
         }
 

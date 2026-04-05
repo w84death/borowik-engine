@@ -208,11 +208,13 @@ pub const SpriteSheet = struct {
     }
 
     pub fn draw_frame(self: *const SpriteSheet, renderer: *Render, frame_index: usize, x: i32, y: i32) void {
+        const screen_w = renderer.width;
+        const screen_h = renderer.height;
         if (frame_index >= self.frame_count()) return;
-        if (x >= CONF.SCREEN_W or y >= CONF.SCREEN_H) return;
+        if (x >= screen_w or y >= screen_h) return;
         if (x + self.tile_w <= 0 or y + self.tile_h <= 0) return;
 
-        if (x >= 0 and y >= 0 and x + self.tile_w <= CONF.SCREEN_W and y + self.tile_h <= CONF.SCREEN_H) {
+        if (x >= 0 and y >= 0 and x + self.tile_w <= screen_w and y + self.tile_h <= screen_h) {
             self.draw_frame_fast(renderer, frame_index, x, y);
         } else {
             self.draw_frame_clipped(renderer, frame_index, x, y);
@@ -222,7 +224,7 @@ pub const SpriteSheet = struct {
     fn draw_frame_fast(self: *const SpriteSheet, renderer: *Render, frame_index: usize, x: i32, y: i32) void {
         const tile_w_usize: usize = @intCast(self.tile_w);
         const tile_h_usize: usize = @intCast(self.tile_h);
-        const screen_w_usize: usize = @intCast(CONF.SCREEN_W);
+        const screen_w_usize: usize = @intCast(renderer.width);
         const x_usize: usize = @intCast(x);
         const y_usize: usize = @intCast(y);
 
@@ -254,15 +256,15 @@ pub const SpriteSheet = struct {
     fn draw_frame_clipped(self: *const SpriteSheet, renderer: *Render, frame_index: usize, x: i32, y: i32) void {
         const tile_w_usize: usize = @intCast(self.tile_w);
         const tile_h_usize: usize = @intCast(self.tile_h);
-        const screen_w_usize: usize = @intCast(CONF.SCREEN_W);
+        const screen_w_usize: usize = @intCast(renderer.width);
         const buffer = renderer.target_buffer();
         const frame_base = frame_index * self.frame_pixels_per_frame;
         const row_base = frame_index * tile_h_usize;
 
         const clip_x0: i32 = @max(0, -x);
         const clip_y0: i32 = @max(0, -y);
-        const clip_x1: i32 = @min(self.tile_w, CONF.SCREEN_W - x);
-        const clip_y1: i32 = @min(self.tile_h, CONF.SCREEN_H - y);
+        const clip_x1: i32 = @min(self.tile_w, renderer.width - x);
+        const clip_y1: i32 = @min(self.tile_h, renderer.height - y);
 
         if (clip_x0 >= clip_x1 or clip_y0 >= clip_y1) return;
 

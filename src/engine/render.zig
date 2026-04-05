@@ -16,7 +16,6 @@ pub const Framebuffer = enum {
 };
 
 pub const Render = struct {
-    const PIXELS_COUNT = CONF.SCREEN_W * CONF.SCREEN_H;
     const PERF_ALPHA: f32 = 0.1;
 
     const PerfStats = struct {
@@ -41,8 +40,9 @@ pub const Render = struct {
     };
 
     window_buf: []u32,
-    window_width: usize,
-    window_height: usize,
+    width: i32,
+    height: i32,
+    pixels_count: usize,
     frame_buf: []u32,
     terrain_buf: []u32,
     allocator: std.mem.Allocator,
@@ -51,20 +51,23 @@ pub const Render = struct {
     now: i64,
     perf: PerfStats = .{},
 
-    pub fn init(buf: []u32, window_width: i32, window_height: i32) Render {
+    pub fn init(buf: []u32, width: i32, height: i32) Render {
         const allocator = std.heap.c_allocator;
-        const frame_buf = allocator.alloc(u32, PIXELS_COUNT) catch @panic("failed to allocate frame buffer");
-        const terrain_buf = allocator.alloc(u32, PIXELS_COUNT) catch @panic("failed to allocate terrain buffer");
-        const win_w: usize = if (window_width > 0) @intCast(window_width) else CONF.SCREEN_W;
-        const win_h: usize = if (window_height > 0) @intCast(window_height) else CONF.SCREEN_H;
+        const w: i32 = if (width > 0) width else CONF.SCREEN_W;
+        const h: i32 = if (height > 0) height else CONF.SCREEN_H;
+        const count: usize = @intCast(@as(i64, w) * @as(i64, h));
+
+        const frame_buf = allocator.alloc(u32, count) catch @panic("failed to allocate frame buffer");
+        const terrain_buf = allocator.alloc(u32, count) catch @panic("failed to allocate terrain buffer");
 
         @memset(frame_buf, 0);
         @memset(terrain_buf, 0);
 
         return .{
             .window_buf = buf,
-            .window_width = win_w,
-            .window_height = win_h,
+            .width = w,
+            .height = h,
+            .pixels_count = count,
             .frame_buf = frame_buf,
             .terrain_buf = terrain_buf,
             .allocator = allocator,
@@ -94,27 +97,7 @@ pub const Render = struct {
     }
 
     pub fn present(self: *Render) void {
-        const dst_w = self.window_width;
-        const dst_h = self.window_height;
-        const src_w: usize = CONF.SCREEN_W;
-        const src_h: usize = CONF.SCREEN_H;
-
-        if (src_w == dst_w and src_h == dst_h) {
-            @memcpy(self.window_buf, self.frame_buf);
-            return;
-        }
-
-        var y: usize = 0;
-        while (y < dst_h) : (y += 1) {
-            const src_y = (y * src_h) / dst_h;
-            const src_row_start = src_y * src_w;
-            const dst_row_start = y * dst_w;
-            var x: usize = 0;
-            while (x < dst_w) : (x += 1) {
-                const src_x = (x * src_w) / dst_w;
-                self.window_buf[dst_row_start + x] = self.frame_buf[src_row_start + src_x];
-            }
-        }
+        @memcpy(self.window_buf, self.frame_buf);
     }
 
     pub fn perf_begin_sim(self: *Render) void {
@@ -179,10 +162,10 @@ pub const Render = struct {
     }
 
     pub fn darken_buffer_pixel(self: *Render, target: Framebuffer, x: i32, y: i32, amount: u8) void {
-        if (x < 0 or y < 0 or x >= CONF.SCREEN_W or y >= CONF.SCREEN_H) return;
+        if (x < 0 or y < 0 or x >= self.width or y >= self.height) return;
 
         const buf = self.buffer_ptr(target);
-        const index: usize = @intCast(y * CONF.SCREEN_W + x);
+        const index: usize = @intCast(y * self.width + x);
         const color = buf[index];
 
         const r: u8 = @intCast((color >> 16) & 0xFF);
@@ -202,13 +185,13 @@ pub const Render = struct {
 
     pub fn put_pixel(self: *Render, x: i32, y: i32, color: u32) void {
         const buf = self.active_buffer_ptr();
-        const index: usize = @intCast(y * CONF.SCREEN_W + x);
+        const index: usize = @intCast(y * self.width + x);
         buf[index] = color;
     }
 
     pub fn get_pixel(self: *Render, x: i32, y: i32) u32 {
         const buf = self.active_buffer_ptr();
-        const index: usize = @intCast(y * CONF.SCREEN_W + x);
+        const index: usize = @intCast(y * self.width + x);
         return buf[index];
     }
 
@@ -226,7 +209,7 @@ pub const Render = struct {
         var err: i32 = if (dx > dy) dx else -dy;
         err = @divFloor(err, 2);
         while (true) {
-            if (x >= 0 and x < CONF.SCREEN_W and y >= 0 and y < CONF.SCREEN_H) {
+            if (x >= 0 and x < self.width and y >= 0 and y < self.height) {
                 self.put_pixel(x, y, color);
             }
             if (x == x1 and y == y1) break;
@@ -243,7 +226,7 @@ pub const Render = struct {
     }
 
     pub fn draw_rect(self: *Render, x: i32, y: i32, w: i32, h: i32, color: u32) void {
-        const clipped = clip_rect(x, y, w, h) orelse return;
+        const clipped = self.clip_rect(x, y, w, h) orelse return;
 
         const ix: u32 = @intCast(clipped.x);
         const iy: u32 = @intCast(clipped.y);
@@ -258,7 +241,7 @@ pub const Render = struct {
     }
 
     pub fn draw_rect_trans(self: *Render, x: i32, y: i32, w: i32, h: i32, color: u32) void {
-        const clipped = clip_rect(x, y, w, h) orelse return;
+        const clipped = self.clip_rect(x, y, w, h) orelse return;
 
         const ix: u32 = @intCast(clipped.x);
         const iy: u32 = @intCast(clipped.y);
@@ -297,10 +280,10 @@ pub const Render = struct {
             while (dx <= ir) : (dx += 1) {
                 const px = x + dx;
                 const py = y + dy;
-                if (px >= 0 and px < CONF.SCREEN_W and py >= 0 and py < CONF.SCREEN_H) {
+                if (px >= 0 and px < self.width and py >= 0 and py < self.height) {
                     const dist = @as(i64, dx) * dx + @as(i64, dy) * dy;
                     if (dist <= rr) {
-                        const index = (@as(usize, @intCast(py)) * CONF.SCREEN_W) + @as(usize, @intCast(px));
+                        const index = (@as(usize, @intCast(py)) * @as(usize, @intCast(self.width))) + @as(usize, @intCast(px));
                         self.active_buffer_ptr()[index] = color;
                     }
                 }
@@ -312,7 +295,7 @@ pub const Render = struct {
         if (old_color == new_color) {
             return;
         }
-        if (x < 0 or y < 0 or x >= CONF.SCREEN_W or y >= CONF.SCREEN_H) {
+        if (x < 0 or y < 0 or x >= self.width or y >= self.height) {
             return;
         }
         if (self.get_pixel(x, y) == old_color) {
@@ -324,7 +307,7 @@ pub const Render = struct {
         }
     }
 
-    fn clip_rect(x: i32, y: i32, w: i32, h: i32) ?ClippedRect {
+    fn clip_rect(self: *Render, x: i32, y: i32, w: i32, h: i32) ?ClippedRect {
         if (w <= 0 or h <= 0) return null;
 
         var rx = x;
@@ -340,11 +323,11 @@ pub const Render = struct {
             rh += ry;
             ry = 0;
         }
-        if (rx + rw > CONF.SCREEN_W) {
-            rw = CONF.SCREEN_W - rx;
+        if (rx + rw > self.width) {
+            rw = self.width - rx;
         }
-        if (ry + rh > CONF.SCREEN_H) {
-            rh = CONF.SCREEN_H - ry;
+        if (ry + rh > self.height) {
+            rh = self.height - ry;
         }
 
         if (rw <= 0 or rh <= 0) return null;

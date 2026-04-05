@@ -39,13 +39,7 @@ pub fn main() void {
         .fullscreen = false,
     };
 
-    const render_pixels = CONF.SCREEN_W * CONF.SCREEN_H;
-    const window_pixels_i64: i64 = @as(i64, settings.width) * @as(i64, settings.height);
-    const window_pixels: usize = if (window_pixels_i64 > 0)
-        @intCast(window_pixels_i64)
-    else
-        render_pixels;
-    const total_pixels: usize = @max(render_pixels, window_pixels);
+    const total_pixels: usize = @intCast(@as(i64, settings.width) * @as(i64, settings.height));
 
     const allocator = std.heap.c_allocator;
     const raw_buf = allocator.alloc(u32, total_pixels) catch @panic("failed to allocate window buffer");
@@ -65,7 +59,7 @@ pub fn main() void {
     var mouse_buttons = MouseButtons.init();
     var renderer = Render.init(raw_buf, settings.width, settings.height);
     defer renderer.deinit();
-    var fui = Fui.init();
+    var fui = Fui.init(settings.width, settings.height);
     var sm = StateMachine.init(State.main_menu);
     var esc_lock = false;
 
@@ -97,11 +91,7 @@ pub fn main() void {
         renderer.begin_frame();
         if (!sm.is(.example)) renderer.clear_background(THEME.BG_COLOR);
 
-        const mapped_mouse_x = @divFloor(f.x * CONF.SCREEN_W, settings.width);
-        const mapped_mouse_y = @divFloor(f.y * CONF.SCREEN_H, settings.height);
-        const mouse_x = std.math.clamp(mapped_mouse_x, 0, CONF.SCREEN_W - 1);
-        const mouse_y = std.math.clamp(mapped_mouse_y, 0, CONF.SCREEN_H - 1);
-        const mouse = mouse_buttons.update(mouse_x, mouse_y, @intCast(f.mouse));
+        const mouse = mouse_buttons.update(f.x, f.y, @intCast(f.mouse));
 
         // ESC handler
         if (esc_lock and f.keys[27] == 0) {
@@ -146,7 +136,7 @@ pub fn main() void {
         fui.draw_version(&renderer);
         renderer.draw_perf_overlay(&fui, THEME);
 
-        fui.draw_cursor_lines(&renderer, .{ mouse_x, mouse_y });
+        fui.draw_cursor_lines(&renderer, .{ f.x, f.y });
 
         renderer.perf_begin_present();
         renderer.present();
