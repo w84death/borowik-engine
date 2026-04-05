@@ -64,6 +64,11 @@ pub const Theme = struct {
         .{ .id = A.NOTE_C4, .dur = 0.045 },
     };
 
+    pub const SFX_POPUP = [_]A.Note{
+        .{ .id = A.NOTE_AS5, .dur = 0.03 },
+        .{ .id = A.NOTE_D6, .dur = 0.04 },
+    };
+
     pub const SFX_EXPLOSION = [_]A.Note{
         .{ .id = A.NOTE_A5, .dur = 0.03 },
         .{ .id = A.NOTE_F5, .dur = 0.03 },

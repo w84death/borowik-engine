@@ -19,7 +19,9 @@ pub fn ExampleScene(comptime Theme: type) type {
 
     const Action = enum {
         none,
+        info_popup_init,
         info_popup,
+        yes_no_popup_init,
         yes_no_popup,
         toggle_vfx,
         toggle_sprite_trails,
@@ -41,8 +43,8 @@ pub fn ExampleScene(comptime Theme: type) type {
             .{
                 .title = "Example Menu",
                 .items = &[_]ActionMenu.MenuItem{
-                    .{ .text = "Info Popup", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.info_popup },
-                    .{ .text = "Ask Yes/No", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.yes_no_popup },
+                    .{ .text = "Info Popup", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.info_popup_init },
+                    .{ .text = "Ask Yes/No", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.yes_no_popup_init },
                     .{ .text = "Toggle VFX", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_vfx },
                     .{ .text = "Toggle Sprite Trails", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_sprite_trails },
                     .{ .text = "Toggle Cursor Follow", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_cursor_follow },
@@ -111,7 +113,9 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.effects.draw(renderer);
             self.handle_top_controls(mouse, renderer);
             self.handle_ui_interactions(mouse, renderer);
-            if (self.ui_visible) self.action_state.update();
+            if (self.ui_visible) {
+                self.action_state.update();
+            }
             self.apply_menu_actions();
             self.render_ui(renderer);
         }
@@ -132,28 +136,28 @@ pub fn ExampleScene(comptime Theme: type) type {
 
             switch (self.action_state.current) {
                 .toggle_vfx => {
-                    self.sfx.play(SfxEffect.menu_main);
                     self.vfx_enabled = !self.vfx_enabled;
+                    self.sfx.play(if (self.vfx_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .toggle_sprite_trails => {
-                    self.sfx.play(SfxEffect.menu_main);
-                    self.benchmark.toggle_sprite_trails();
+                    const st_enabled = self.benchmark.toggle_sprite_trails();
+                    self.sfx.play(if (st_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .toggle_cursor_follow => {
-                    self.sfx.play(SfxEffect.menu_main);
-                    self.benchmark.toggle_cursor_follow();
+                    const cf_enabled = self.benchmark.toggle_cursor_follow();
+                    self.sfx.play(if (cf_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .toggle_simulation => {
-                    self.sfx.play(SfxEffect.menu_main);
-                    self.benchmark.toggle_simulation();
+                    const s_enabled = self.benchmark.toggle_simulation();
+                    self.sfx.play(if (s_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .toggle_explosions => {
-                    self.sfx.play(SfxEffect.menu_main);
                     self.explosions_enabled = !self.explosions_enabled;
+                    self.sfx.play(if (self.explosions_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .play_proc_music => {
@@ -180,6 +184,14 @@ pub fn ExampleScene(comptime Theme: type) type {
                     self.benchmark.spawn_many(10000);
                     self.action_state.go_to(Action.none);
                 },
+                .info_popup_init => {
+                    self.sfx.play(SfxEffect.menu_popup);
+                    self.action_state.go_to(Action.info_popup);
+                },
+                .yes_no_popup_init => {
+                    self.sfx.play(SfxEffect.menu_popup);
+                    self.action_state.go_to(Action.yes_no_popup);
+                },
                 .none, .info_popup, .yes_no_popup => {},
             }
         }
@@ -196,11 +208,12 @@ pub fn ExampleScene(comptime Theme: type) type {
                 },
                 .yes_no_popup => {
                     if (self.fui.yes_no_popup(renderer, "Do you like this popup?", mouse)) |answer| {
-                        self.sfx.play(SfxEffect.menu_main);
                         self.last_yes_no = answer;
+                        self.sfx.play(if (answer) SfxEffect.menu_main else SfxEffect.menu_back);
                         self.action_state.go_to(Action.none);
                     }
                 },
+                .info_popup_init, .yes_no_popup_init => {},
                 .none,
                 .toggle_vfx,
                 .toggle_sprite_trails,

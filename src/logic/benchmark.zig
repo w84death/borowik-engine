@@ -229,16 +229,19 @@ pub const BenchmarkLogic = struct {
         sheet.draw_frame(renderer, frame, draw_x, draw_y);
     }
 
-    pub fn toggle_sprite_trails(self: *Self) void {
+    pub fn toggle_sprite_trails(self: *Self) bool {
         self.sprite_trails_enabled = !self.sprite_trails_enabled;
+        return self.sprite_trails_enabled;
     }
 
-    pub fn toggle_cursor_follow(self: *Self) void {
+    pub fn toggle_cursor_follow(self: *Self) bool {
         self.cursor_follow_enabled = !self.cursor_follow_enabled;
+        return self.cursor_follow_enabled;
     }
 
-    pub fn toggle_simulation(self: *Self) void {
+    pub fn toggle_simulation(self: *Self) bool {
         self.simulation_enabled = !self.simulation_enabled;
+        return self.simulation_enabled;
     }
 
     pub fn is_sprite_trails_enabled(self: *const Self) bool {
