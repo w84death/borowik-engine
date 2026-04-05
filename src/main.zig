@@ -12,6 +12,8 @@ const c = @cImport({
 const CONF = @import("engine/config.zig").CONF;
 const IO = @import("engine/io.zig");
 const Render = @import("engine/render.zig").Render;
+const Audio = @import("engine/audio.zig").Audio;
+const ProcAudio = @import("engine/proc_audio.zig").ProcAudio;
 const THEME = @import("themes/mil.zig").Theme;
 //const THEME = @import("themes/smol.zig").Theme;
 //const THEME = @import("themes/shroom.zig").Theme;
@@ -59,6 +61,10 @@ pub fn main() void {
     var mouse_buttons = MouseButtons.init();
     var renderer = Render.init(raw_buf, settings.width, settings.height);
     defer renderer.deinit();
+    var audio = Audio.init();
+    defer audio.deinit();
+    var proc_audio = ProcAudio.init(std.heap.c_allocator);
+    defer proc_audio.deinit();
     var fui = Fui.init(settings.width, settings.height);
     var sm = StateMachine.init(State.main_menu);
     var esc_lock = false;
@@ -82,7 +88,7 @@ pub fn main() void {
     const core_menu = Menu.init(&fui, &menu_groups);
     var menu = MenuScene.init(&fui, &sm, core_menu);
     var about = AboutScene.init(&fui);
-    var example = ExampleScene.init(std.heap.c_allocator, &fui, &renderer);
+    var example = ExampleScene.init(std.heap.c_allocator, &fui, &renderer, &audio, &proc_audio);
     defer example.deinit();
 
     while (c.fenster_loop(&f) == 0) {
@@ -141,6 +147,8 @@ pub fn main() void {
         renderer.perf_begin_present();
         renderer.present();
         renderer.perf_end_present();
+
+        audio.update_audio(renderer.dt);
 
         renderer.cap_frame(CONF.TARGET_FPS);
     }

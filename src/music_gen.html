@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Gen Simulator</title>
+  <style>
+    :root {
+      --bg: #0f1320;
+      --panel: #1a2238;
+      --ink: #edf1ff;
+      --muted: #9fb0d6;
+      --line: #31426b;
+      --accent: #5eead4;
+    }
+    body {
+      margin: 0;
+      font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--ink);
+      background: radial-gradient(1200px 600px at 20% 0%, #1b2440 0%, var(--bg) 60%);
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 20px auto;
+      padding: 0 14px 24px;
+    }
+    .card {
+      background: color-mix(in srgb, var(--panel) 88%, black 12%);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    label { color: var(--muted); }
+    select, input, button {
+      background: #0f1a33;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 9px;
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      border-color: #2a8f86;
+      background: linear-gradient(180deg, #125d57, #104844);
+    }
+    button:hover { filter: brightness(1.07); }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #d8e4ff;
+    }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Procedural Tune Simulator (ASM-style rules)</h1>
+      <div class="row">
+        <label for="profile">Profile</label>
+        <select id="profile">
+          <option value="ENERGETIC">ENERGETIC</option>
+          <option value="SUBTLE">SUBTLE</option>
+          <option value="LOSE_NEGATIVE">LOSE_NEGATIVE</option>
+        </select>
+
+        <label for="seed">Seed</label>
+        <input id="seed" type="number" value="12345" step="1" />
+
+        <label for="phrases">Phrases</label>
+        <input id="phrases" type="number" value="2" min="1" max="16" />
+
+        <button id="gen">Generate</button>
+        <button id="play">Play Last</button>
+      </div>
+      <div class="muted">Selection matches doc: slot = min(rand&7, rand&7), then fallback toward slot 0 on invalid candidates.</div>
+    </div>
+
+    <div class="card">
+      <pre id="out">Press Generate.</pre>
+    </div>
+  </div>
+
+  <script>
+    // Copied from src/sfx.asm NoteTable (index 0..63, 0 is REST)
+    // divisor = 1193180 / frequency_hz
+    const NOTE_DIVISOR = [
+      0xFFFF,
+      0x4698, 0x3F1D, 0x38FF, 0x33A1, 0x2F01, 0x2A0F, 0x25C7, 0x221B, 0x1F02, 0x1C70, 0x1A52, 0x189F,
+      0x234C, 0x1F8F, 0x1C80, 0x19D1, 0x1781, 0x1508, 0x12E4, 0x110E, 0x0F81, 0x0E38, 0x0D29, 0x0C50,
+      0x11A6, 0x0FC8, 0x0E40, 0x0CE9, 0x0BC1, 0x0A84, 0x0972, 0x0887, 0x07C1, 0x071C, 0x0695, 0x0628,
+      0x08D3, 0x07E4, 0x0720, 0x0675, 0x05E1, 0x0542, 0x04B9, 0x0444, 0x03E1, 0x038E, 0x034B, 0x0314,
+      0x046A, 0x03F2, 0x0390, 0x033B, 0x02F1, 0x02A1, 0x025D, 0x0222, 0x01F1, 0x01C7, 0x01A6, 0x018A,
+      0x0235, 0x01F9, 0x01C8
+    ];
+
+    // Note constants copied from src/sfx.asm
+    const NOTE_REST = 0;
+    const NOTE_C2 = 1, NOTE_CS2 = 2, NOTE_D2 = 3, NOTE_DS2 = 4, NOTE_E2 = 5, NOTE_F2 = 6, NOTE_FS2 = 7, NOTE_G2 = 8, NOTE_GS2 = 9, NOTE_A2 = 10, NOTE_AS2 = 11, NOTE_B2 = 12;
+    const NOTE_C3 = 13, NOTE_CS3 = 14, NOTE_D3 = 15, NOTE_DS3 = 16, NOTE_E3 = 17, NOTE_F3 = 18, NOTE_FS3 = 19, NOTE_G3 = 20, NOTE_GS3 = 21, NOTE_A3 = 22, NOTE_AS3 = 23, NOTE_B3 = 24;
+    const NOTE_C4 = 25, NOTE_CS4 = 26, NOTE_D4 = 27, NOTE_DS4 = 28, NOTE_E4 = 29, NOTE_F4 = 30, NOTE_FS4 = 31, NOTE_G4 = 32, NOTE_GS4 = 33, NOTE_A4 = 34, NOTE_AS4 = 35, NOTE_B4 = 36;
+    const NOTE_C5 = 37, NOTE_CS5 = 38, NOTE_D5 = 39, NOTE_DS5 = 40, NOTE_E5 = 41, NOTE_F5 = 42, NOTE_FS5 = 43, NOTE_G5 = 44, NOTE_GS5 = 45, NOTE_A5 = 46, NOTE_AS5 = 47, NOTE_B5 = 48;
+    const NOTE_C6 = 49, NOTE_CS6 = 50, NOTE_D6 = 51, NOTE_DS6 = 52, NOTE_E6 = 53, NOTE_F6 = 54, NOTE_FS6 = 55, NOTE_G6 = 56, NOTE_GS6 = 57, NOTE_A6 = 58, NOTE_AS6 = 59, NOTE_B6 = 60;
+    const NOTE_C7 = 61, NOTE_CS7 = 62, NOTE_D7 = 63;
+
+    const NOTE_NAMES = [
+      "REST",
+      "C2","C#2","D2","D#2","E2","F2","F#2","G2","G#2","A2","A#2","B2",
+      "C3","C#3","D3","D#3","E3","F3","F#3","G3","G#3","A3","A#3","B3",
+      "C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4",
+      "C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5","A5","A#5","B5",
+      "C6","C#6","D6","D#6","E6","F6","F#6","G6","G#6","A6","A#6","B6",
+      "C7","C#7","D7"
+    ];
+
+    // Shared delta table from docs/music_gen.md (pitch classes C..B)
+    const NEXT_DELTA_BY_PC = [
+      [ +2,  0, -2, +4, -5, +7, -7, +12 ], // C
+      [ +1, -1, +2, -2, +3, -3, +7, -5  ], // C#
+      [ -2, +2,  0, +3, -4, +5, -7, +12 ], // D
+      [ +1, -1, +2, -2, +4, -4, +7, -5  ], // D#
+      [ -1, +2, -2,  0, +3, -5, +7, -12 ], // E
+      [ +2, -2,  0, +3, -4, +5, -7, +12 ], // F
+      [ +1, -1, +2, -2, +3, -3, +7, -5  ], // F#
+      [ +2, -2,  0, +4, -5, +7, -7, +12 ], // G
+      [ +1, -1, +2, -2, +3, -4, +7, -5  ], // G#
+      [ -2, +2,  0, +3, -5, +7, -7, +12 ], // A
+      [ +1, -1, +2, -2, +4, -3, +7, -5  ], // A#
+      [ +1, -2, +2,  0, -1, +5, -7, +12 ]  // B
+    ];
+
+    const DIR_NEUTRAL = 0;
+    const DIR_UP = 1;
+    const DIR_DOWN = 2;
+
+    const PROFILES = {
+      ENERGETIC: {
+        min_note: NOTE_C4,
+        max_note: NOTE_B6,
+        rest_chance: 12,
+        max_slot: 6,
+        dir_bias: DIR_UP,
+        phrase_min: 8,
+        phrase_max: 16,
+        scale_mask12: 0x0AB5 // C major
+      },
+      SUBTLE: {
+        min_note: NOTE_A3,
+        max_note: NOTE_E5,
+        rest_chance: 40,
+        max_slot: 3,
+        dir_bias: DIR_NEUTRAL,
+        phrase_min: 8,
+        phrase_max: 12,
+        scale_mask12: 0x0AB5 // C major
+      },
+      LOSE_NEGATIVE: {
+        min_note: NOTE_C3,
+        max_note: NOTE_B4,
+        rest_chance: 64,
+        max_slot: 4,
+        dir_bias: DIR_DOWN,
+        phrase_min: 6,
+        phrase_max: 10,
+        scale_mask12: 0x05AD // C natural minor
+      }
+    };
+
+    function makeRng(seed) {
+      let s = (seed >>> 0) || 1;
+      return function rand8() {
+        s = (1664525 * s + 1013904223) >>> 0;
+        return (s >>> 24) & 0xFF;
+      };
+    }
+
+    function noteToPc(noteId) {
+      // src/sfx.asm note IDs start at 1 (C2), so subtract 1 first.
+      return ((noteId - 1) % 12 + 12) % 12;
+    }
+
+    function inScale(noteId, mask12) {
+      const pc = noteToPc(noteId);
+      return ((mask12 >>> pc) & 1) !== 0;
+    }
+
+    function randInRange(rand8, minInc, maxInc) {
+      const span = maxInc - minInc + 1;
+      return minInc + (rand8() % span);
+    }
+
+    function pickStartNote(profile, rand8) {
+      for (let i = 0; i < 64; i++) {
+        const n = randInRange(rand8, profile.min_note, profile.max_note);
+        if (inScale(n, profile.scale_mask12)) return n;
+      }
+      return profile.min_note;
+    }
+
+    function nextNote(cur, profile, rand8) {
+      // 1) optional rest gate
+      if (rand8() < profile.rest_chance) return NOTE_REST;
+
+      // If current is rest, restart from a valid note.
+      if (cur === NOTE_REST) return pickStartNote(profile, rand8);
+
+      // 2) front-biased slot pick
+      const a = rand8() & 7;
+      const b = rand8() & 7;
+      let slot = Math.min(a, b);
+      if (slot > profile.max_slot) slot = profile.max_slot;
+
+      // 3) row by pitch class
+      const pc = noteToPc(cur);
+      const row = NEXT_DELTA_BY_PC[pc];
+
+      // 4) try selected slot, fallback toward 0
+      while (slot >= 0) {
+        const delta = row[slot];
+
+        if (profile.dir_bias === DIR_UP && delta < 0) {
+          slot -= 1;
+          continue;
+        }
+        if (profile.dir_bias === DIR_DOWN && delta > 0) {
+          slot -= 1;
+          continue;
+        }
+
+        const cand = cur + delta;
+        if (cand < profile.min_note || cand > profile.max_note) {
+          slot -= 1;
+          continue;
+        }
+        if (!inScale(cand, profile.scale_mask12)) {
+          slot -= 1;
+          continue;
+        }
+        return cand;
+      }
+
+      return cur;
+    }
+
+    function noteFreqHz(noteId) {
+      if (noteId === NOTE_REST) return 0;
+      const div = NOTE_DIVISOR[noteId];
+      return 1193180 / div;
+    }
+
+    function generateTune(profileName, seed, phraseCount) {
+      const profile = PROFILES[profileName];
+      const rand8 = makeRng(seed);
+      const notes = [];
+      let cur = pickStartNote(profile, rand8);
+
+      for (let p = 0; p < phraseCount; p++) {
+        const len = randInRange(rand8, profile.phrase_min, profile.phrase_max);
+        for (let i = 0; i < len; i++) {
+          notes.push(cur);
+          cur = nextNote(cur, profile, rand8);
+        }
+      }
+
+      return { profile, notes };
+    }
+
+    function formatNote(noteId) {
+      const name = NOTE_NAMES[noteId] || "?";
+      if (noteId === NOTE_REST) return `0 REST`;
+      const hz = noteFreqHz(noteId).toFixed(2);
+      return `${noteId.toString().padStart(2, " ")} ${name.padEnd(3, " ")} ${hz}Hz`;
+    }
+
+    let lastNotes = [];
+
+    function render() {
+      const profileName = document.getElementById("profile").value;
+      const seed = Number(document.getElementById("seed").value || 1);
+      const phrases = Number(document.getElementById("phrases").value || 1);
+
+      const result = generateTune(profileName, seed, phrases);
+      lastNotes = result.notes.slice();
+
+      const lines = [];
+      lines.push(`profile=${profileName} seed=${seed} phrases=${phrases}`);
+      lines.push(`range=${result.profile.min_note}-${result.profile.max_note} rest_chance=${result.profile.rest_chance} max_slot=${result.profile.max_slot}`);
+      lines.push("");
+      lines.push("Note IDs:");
+      lines.push(result.notes.join(", "));
+      lines.push("");
+      lines.push("Decoded:");
+      lines.push(result.notes.map(formatNote).join("\n"));
+
+      document.getElementById("out").textContent = lines.join("\n");
+    }
+
+    async function playLast() {
+      if (!lastNotes.length) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      await ctx.resume();
+
+      let t = ctx.currentTime + 0.02;
+      for (const n of lastNotes) {
+        const dur = (n === NOTE_REST) ? 0.12 : 0.16;
+        if (n !== NOTE_REST) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "square";
+          o.frequency.value = noteFreqHz(n);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.04, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          o.connect(g).connect(ctx.destination);
+          o.start(t);
+          o.stop(t + dur + 0.01);
+        }
+        t += dur;
+      }
+    }
+
+    document.getElementById("gen").addEventListener("click", render);
+    document.getElementById("play").addEventListener("click", playLast);
+    render();
+  </script>
+</body>
+</html>

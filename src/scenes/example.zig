@@ -1,4 +1,7 @@
 const std = @import("std");
+const Audio = @import("../engine/audio.zig").Audio;
+const ProcAudio = @import("../engine/proc_audio.zig").ProcAudio;
+const ProcAudioProfile = @import("../engine/proc_audio.zig").Profile;
 const Mouse = @import("../engine/mouse.zig").Mouse;
 const Menu = @import("../engine/menu.zig").Menu;
 const Render = @import("../engine/render.zig").Render;
@@ -17,6 +20,7 @@ pub fn ExampleScene(comptime Theme: type) type {
         toggle_sprite_trails,
         toggle_cursor_follow,
         toggle_simulation,
+        play_proc_music,
         spawn_sprite,
         spawn_100_sprites,
         spawn_10k_sprites,
@@ -37,6 +41,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                     .{ .text = "Toggle Sprite Trails", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_sprite_trails },
                     .{ .text = "Toggle Cursor Follow", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_cursor_follow },
                     .{ .text = "Toggle Simulation", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_simulation },
+                    .{ .text = "Play Proc Music", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.play_proc_music },
                     .{ .text = "Spawn 1 Sprite", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_sprite },
                     .{ .text = "Spawn 100 sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_100_sprites },
                     .{ .text = "Spawn 10K sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_10k_sprites },
@@ -47,17 +52,21 @@ pub fn ExampleScene(comptime Theme: type) type {
         fui: *Fui,
         vfx: Vfx,
         benchmark: Benchmark,
+        audio: *Audio,
+        proc_audio: *ProcAudio,
         action_state: ActionState,
         action_menu: ActionMenu,
         vfx_enabled: bool,
         ui_visible: bool,
         last_yes_no: ?bool = null,
 
-        pub fn init(allocator: std.mem.Allocator, fui: *Fui, renderer: *Render) Self {
+        pub fn init(allocator: std.mem.Allocator, fui: *Fui, renderer: *Render, audio: *Audio, proc_audio: *ProcAudio) Self {
             return .{
                 .fui = fui,
                 .vfx = Vfx.init(renderer.width, renderer.height),
                 .benchmark = Benchmark.init(allocator, renderer),
+                .audio = audio,
+                .proc_audio = proc_audio,
                 .action_state = ActionState.init(Action.none),
                 .action_menu = ActionMenu.init(fui, &action_groups),
                 .vfx_enabled = false,
@@ -117,6 +126,15 @@ pub fn ExampleScene(comptime Theme: type) type {
                     self.benchmark.toggle_simulation();
                     self.action_state.go_to(Action.none);
                 },
+                .play_proc_music => {
+                    var seed_u64: u64 = 0;
+                    std.posix.getrandom(std.mem.asBytes(&seed_u64)) catch {};
+                    const seed: u32 = @truncate(seed_u64);
+                    self.proc_audio.play(self.audio, ProcAudioProfile.energetic, seed, 3) catch |err| {
+                        std.log.err("failed to play procedural tune: {s}", .{@errorName(err)});
+                    };
+                    self.action_state.go_to(Action.none);
+                },
                 .spawn_sprite => {
                     self.benchmark.spawn_one();
                     self.action_state.go_to(Action.none);
@@ -153,6 +171,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                 .toggle_sprite_trails,
                 .toggle_cursor_follow,
                 .toggle_simulation,
+                .play_proc_music,
                 .spawn_sprite,
                 .spawn_100_sprites,
                 .spawn_10k_sprites,
