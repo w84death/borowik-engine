@@ -49,7 +49,7 @@ pub fn ExampleScene(comptime Theme: type) type {
         };
         const SpriteDefinition = struct {
             type: SpriteType,
-            sprite_path: []const u8,
+            sprite_data: []const u8,
             sprite_sheet: ?*SpriteSheet,
             sprite_size: i32,
             // sprite_anim_start: usize,
@@ -104,7 +104,7 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.sprites_defs = [_]SpriteDefinition{
                 .{
                     .type = .animated,
-                    .sprite_path = "sprites/borowik.bmp",
+                    .sprite_data = @embedFile("../sprites/borowik.bmp"),
                     .sprite_sheet = null,
                     .sprite_size = 32,
                     .sprite_anim_len = 3,
@@ -114,7 +114,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                 },
                 .{
                     .type = .tileset,
-                    .sprite_path = "sprites/terrain.bmp",
+                    .sprite_data = @embedFile("../sprites/terrain.bmp"),
                     .sprite_sheet = null,
                     .sprite_size = 32,
                     .sprite_anim_len = 8,
@@ -133,7 +133,7 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.terrain_ready = false;
 
             for (&self.sprites_defs) |*def| {
-                if (SpriteSheet.load_bmp(self.allocator, def.sprite_path, def.sprite_size, def.sprite_size)) |sheet| {
+                if (SpriteSheet.load_bmp_bytes(self.allocator, def.sprite_data, def.sprite_size, def.sprite_size)) |sheet| {
                     const sheet_ptr = self.allocator.create(SpriteSheet) catch |err| {
                         std.log.err("failed to allocate sprite sheet: {s}", .{@errorName(err)});
                         return self;
@@ -141,7 +141,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                     sheet_ptr.* = sheet;
                     def.sprite_sheet = sheet_ptr;
                 } else |err| {
-                    std.log.err("failed to load sprite sheet {s}: {s}", .{ def.sprite_path, @errorName(err) });
+                    std.log.err("failed to load sprite sheet {s}: {s}", .{ def.sprite_data, @errorName(err) });
                 }
             }
             return self;

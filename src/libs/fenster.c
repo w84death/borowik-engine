@@ -6,7 +6,7 @@ static const uint8_t FENSTER_KEYCODES[] = {0,27,49,50,51,52,53,54,55,56,57,48,45
 // clang-format on
 typedef struct BINFO {
   BITMAPINFOHEADER bmiHeader;
-  RGBQUAD bmiColors[3];
+  DWORD bmiMasks[3];
 } BINFO;
 
 static LRESULT CALLBACK fenster_wndproc(HWND hwnd, UINT msg, WPARAM wParam,
@@ -16,19 +16,18 @@ static LRESULT CALLBACK fenster_wndproc(HWND hwnd, UINT msg, WPARAM wParam,
   case WM_PAINT: {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
-    HDC memdc = CreateCompatibleDC(hdc);
-    HBITMAP hbmp = CreateCompatibleBitmap(hdc, f->width, f->height);
-    HBITMAP oldbmp = SelectObject(memdc, hbmp);
-    BINFO bi = {{sizeof(bi), f->width, -f->height, 1, 32, BI_BITFIELDS}};
-    bi.bmiColors[0].rgbRed = 0xff;
-    bi.bmiColors[1].rgbGreen = 0xff;
-    bi.bmiColors[2].rgbBlue = 0xff;
-    SetDIBitsToDevice(memdc, 0, 0, f->width, f->height, 0, 0, 0, f->height,
+    BINFO bi = {0};
+    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = f->width;
+    bi.bmiHeader.biHeight = -f->height;
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_BITFIELDS;
+    bi.bmiMasks[0] = 0x00ff0000;
+    bi.bmiMasks[1] = 0x0000ff00;
+    bi.bmiMasks[2] = 0x000000ff;
+    SetDIBitsToDevice(hdc, 0, 0, f->width, f->height, 0, 0, 0, f->height,
                       f->buf, (BITMAPINFO *)&bi, DIB_RGB_COLORS);
-    BitBlt(hdc, 0, 0, f->width, f->height, memdc, 0, 0, SRCCOPY);
-    SelectObject(memdc, oldbmp);
-    DeleteObject(hbmp);
-    DeleteDC(memdc);
     EndPaint(hwnd, &ps);
   } break;
   case WM_CLOSE:
@@ -115,7 +114,7 @@ int fenster_loop(struct fenster *f) {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
-  InvalidateRect(f->hwnd, NULL, TRUE);
+  InvalidateRect(f->hwnd, NULL, FALSE);
   return 0;
 }
 

@@ -41,6 +41,17 @@ pub const SpriteSheet = struct {
         const source = try file.readToEndAlloc(allocator, CONF.SPRITE_MAX_FILE_BYTES);
         defer allocator.free(source);
 
+        return load_bmp_bytes(allocator, source, tile_w, tile_h);
+    }
+
+    pub fn load_bmp_bytes(
+        allocator: std.mem.Allocator,
+        source: []const u8,
+        tile_w: i32,
+        tile_h: i32,
+    ) !SpriteSheet {
+        if (tile_w <= 0 or tile_h <= 0) return SpriteError.InvalidTileSize;
+
         if (source.len < CONF.BMP_FILE_HEADER_SIZE + CONF.BMP_DIB_HEADER_MIN_SIZE) {
             return SpriteError.InvalidBmp;
         }

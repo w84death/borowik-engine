@@ -47,7 +47,13 @@ pub fn main() void {
     var fui = Fui.init();
     var sm = StateMachine.init(State.main_menu);
     var fps_text_buf: [32]u8 = undefined;
+    var sim_text_buf: [32]u8 = undefined;
+    var draw_text_buf: [32]u8 = undefined;
+    var present_text_buf: [32]u8 = undefined;
     var smoothed_fps: f32 = CONF.TARGET_FPS;
+    var smoothed_sim_ms: f32 = 0.0;
+    var smoothed_draw_ms: f32 = 0.0;
+    var smoothed_present_ms: f32 = 0.0;
     var esc_lock = false;
 
     const menu_groups = [_]Menu.MenuGroup{
@@ -73,6 +79,7 @@ pub fn main() void {
     defer example.deinit();
 
     while (c.fenster_loop(&f) == 0) {
+        const sim_start_ns = std.time.nanoTimestamp();
         sm.update();
         renderer.begin_frame();
         if (!sm.is(.example)) renderer.clear_background(THEME.BG_COLOR);
@@ -103,6 +110,9 @@ pub fn main() void {
             },
         }
 
+        const sim_end_ns = std.time.nanoTimestamp();
+        const draw_start_ns = sim_end_ns;
+
         // Top global navigation
         if (!sm.is(State.main_menu) and fui.button(&renderer, fui.pivotX(.top_left), fui.pivotY(.top_left), 120, 32, "< Menu", THEME.MENU_SECONDARY_COLOR, THEME.MENU_HIGHLIGHT_COLOR, mouse)) {
             sm.go_to(State.main_menu);
@@ -118,8 +128,31 @@ pub fn main() void {
         const fps: i32 = @intFromFloat(@round(smoothed_fps));
         const fps_text = std.fmt.bufPrint(&fps_text_buf, "FPS: {d}", .{fps}) catch "FPS: ?";
         fui.draw_text(&renderer, fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
+
+        const sim_ms_text = std.fmt.bufPrint(&sim_text_buf, "SIM: {d:.2}ms", .{smoothed_sim_ms}) catch "SIM: ?";
+        fui.draw_text(&renderer, sim_ms_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left) - 24, THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
+
+        const draw_ms_text = std.fmt.bufPrint(&draw_text_buf, "DRAW: {d:.2}ms", .{smoothed_draw_ms}) catch "DRAW: ?";
+        fui.draw_text(&renderer, draw_ms_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left) - 48, THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
+
+        const present_ms_text = std.fmt.bufPrint(&present_text_buf, "PRESENT: {d:.2}ms", .{smoothed_present_ms}) catch "PRESENT: ?";
+        fui.draw_text(&renderer, present_ms_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left) - 72, THEME.FONT_DEFAULT, THEME.SECONDARY_COLOR);
+
         fui.draw_cursor_lines(&renderer, .{ f.x, f.y });
+
+        const draw_end_ns = std.time.nanoTimestamp();
+        const present_start_ns = draw_end_ns;
         renderer.present();
+        const present_end_ns = std.time.nanoTimestamp();
+
+        const sim_ms: f32 = @as(f32, @floatFromInt(sim_end_ns - sim_start_ns)) / 1_000_000.0;
+        const draw_ms: f32 = @as(f32, @floatFromInt(draw_end_ns - draw_start_ns)) / 1_000_000.0;
+        const present_ms: f32 = @as(f32, @floatFromInt(present_end_ns - present_start_ns)) / 1_000_000.0;
+        const perf_alpha: f32 = 0.1;
+        smoothed_sim_ms += (sim_ms - smoothed_sim_ms) * perf_alpha;
+        smoothed_draw_ms += (draw_ms - smoothed_draw_ms) * perf_alpha;
+        smoothed_present_ms += (present_ms - smoothed_present_ms) * perf_alpha;
+
         renderer.cap_frame(CONF.TARGET_FPS);
     }
 }
