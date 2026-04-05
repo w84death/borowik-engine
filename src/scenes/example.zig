@@ -88,6 +88,7 @@ pub fn ExampleScene(comptime Theme: type) type {
         sprite_trails_enabled: bool,
         cursor_follow_enabled: bool,
         simulation_enabled: bool,
+        ui_visible: bool,
         terrain_ready: bool,
         last_yes_no: ?bool = null,
 
@@ -129,6 +130,7 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.sprite_trails_enabled = false;
             self.cursor_follow_enabled = false;
             self.simulation_enabled = true;
+            self.ui_visible = true;
             self.last_yes_no = null;
             self.terrain_ready = false;
 
@@ -159,14 +161,16 @@ pub fn ExampleScene(comptime Theme: type) type {
         }
 
         pub fn draw(self: *Self, mouse: Mouse, dt: f32, renderer: *Render) void {
-            self.action_state.update();
-
             if (!self.terrain_ready) {
                 self.init_terrain(renderer);
                 self.terrain_ready = true;
             }
             renderer.copy_buffer(.terrain, .frame);
             renderer.set_target(.frame);
+
+            if (self.ui_visible) {
+                self.action_state.update();
+            }
 
             if (self.vfx_enabled and self.simulation_enabled) {
                 self.vfx.draw(renderer, Theme.SECONDARY_COLOR, dt);
@@ -223,95 +227,107 @@ pub fn ExampleScene(comptime Theme: type) type {
                 instance.sprite.draw(renderer, draw_x, draw_y);
             }
 
-            const title = "Example Scene";
-            const tx = self.fui.pivotX(.center) - self.fui.text_center(title, Theme.FONT_MEDIUM)[0];
-            const ty = self.fui.pivotY(.center) - 320;
-            self.fui.draw_text(renderer, title, tx, ty, Theme.FONT_MEDIUM, Theme.PRIMARY_COLOR);
-
-            switch (self.action_state.current) {
-                .info_popup => {
-                    if (self.fui.info_popup(renderer, "Information popup example", mouse, Theme.POPUP_COLOR) != null) {
-                        self.action_state.go_to(Action.none);
-                    }
-                },
-                .yes_no_popup => {
-                    if (self.fui.yes_no_popup(renderer, "Do you like this popup?", mouse)) |answer| {
-                        self.last_yes_no = answer;
-                        self.action_state.go_to(Action.none);
-                    }
-                },
-                .toggle_vfx => {
-                    self.vfx_enabled = !self.vfx_enabled;
+            const ui_toggle_text: [:0]const u8 = if (self.ui_visible) "Hide UI" else "Show UI";
+            if (self.fui.button(renderer, self.fui.pivotX(.top_right) - 140, self.fui.pivotY(.top_right), 136, 32, ui_toggle_text, Theme.MENU_SECONDARY_COLOR, Theme.MENU_HIGHLIGHT_COLOR, mouse)) {
+                self.ui_visible = !self.ui_visible;
+                if (!self.ui_visible) {
                     self.action_state.go_to(Action.none);
-                },
-                .toggle_sprite_trails => {
-                    self.sprite_trails_enabled = !self.sprite_trails_enabled;
-                    self.action_state.go_to(Action.none);
-                },
-                .toggle_cursor_follow => {
-                    self.cursor_follow_enabled = !self.cursor_follow_enabled;
-                    self.action_state.go_to(Action.none);
-                },
-                .toggle_simulation => {
-                    self.simulation_enabled = !self.simulation_enabled;
-                    self.action_state.go_to(Action.none);
-                },
-                .spawn_sprite => {
-                    self.spawn_random_sprite() catch |err| {
-                        std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
-                    };
-                    self.action_state.go_to(Action.none);
-                },
-                .spawn_100_sprites => {
-                    var i: usize = 0;
-                    while (i < 100) : (i += 1) {
-                        self.spawn_random_sprite() catch |err| {
-                            std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
-                            break;
-                        };
-                    }
-                    self.action_state.go_to(Action.none);
-                },
-                .spawn_10k_sprites => {
-                    var i: usize = 0;
-                    while (i < 10000) : (i += 1) {
-                        self.spawn_random_sprite() catch |err| {
-                            std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
-                            break;
-                        };
-                    }
-                    self.action_state.go_to(Action.none);
-                },
-                .none => {
-                    self.action_menu.draw(renderer, &self.action_state, mouse);
-                },
+                }
             }
 
-            const mx = self.fui.pivotX(.center) - 100;
-            const my = self.fui.pivotY(.bottom_left);
-            const status: [:0]const u8 = if (self.last_yes_no == null)
-                "Last choice: -"
-            else if (self.last_yes_no.?)
-                "Last choice: Yes"
-            else
-                "Last choice: No";
-            self.fui.draw_text(renderer, status, mx, my, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
+            if (self.ui_visible) {
+                const title = "Example Scene";
+                const tx = self.fui.pivotX(.center) - self.fui.text_center(title, Theme.FONT_MEDIUM)[0];
+                const ty = self.fui.pivotY(.center) - 320;
+                self.fui.draw_text(renderer, title, tx, ty, Theme.FONT_MEDIUM, Theme.PRIMARY_COLOR);
 
-            var count_buf: [32]u8 = undefined;
-            const count_text = std.fmt.bufPrint(&count_buf, "Sprites: {d}", .{self.sprites.items.len}) catch "Sprites: ?";
-            self.fui.draw_text(renderer, count_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right), Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+                switch (self.action_state.current) {
+                    .info_popup => {
+                        if (self.fui.info_popup(renderer, "Information popup example", mouse, Theme.POPUP_COLOR) != null) {
+                            self.action_state.go_to(Action.none);
+                        }
+                    },
+                    .yes_no_popup => {
+                        if (self.fui.yes_no_popup(renderer, "Do you like this popup?", mouse)) |answer| {
+                            self.last_yes_no = answer;
+                            self.action_state.go_to(Action.none);
+                        }
+                    },
+                    .toggle_vfx => {
+                        self.vfx_enabled = !self.vfx_enabled;
+                        self.action_state.go_to(Action.none);
+                    },
+                    .toggle_sprite_trails => {
+                        self.sprite_trails_enabled = !self.sprite_trails_enabled;
+                        self.action_state.go_to(Action.none);
+                    },
+                    .toggle_cursor_follow => {
+                        self.cursor_follow_enabled = !self.cursor_follow_enabled;
+                        self.action_state.go_to(Action.none);
+                    },
+                    .toggle_simulation => {
+                        self.simulation_enabled = !self.simulation_enabled;
+                        self.action_state.go_to(Action.none);
+                    },
+                    .spawn_sprite => {
+                        self.spawn_random_sprite() catch |err| {
+                            std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
+                        };
+                        self.action_state.go_to(Action.none);
+                    },
+                    .spawn_100_sprites => {
+                        var i: usize = 0;
+                        while (i < 100) : (i += 1) {
+                            self.spawn_random_sprite() catch |err| {
+                                std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
+                                break;
+                            };
+                        }
+                        self.action_state.go_to(Action.none);
+                    },
+                    .spawn_10k_sprites => {
+                        var i: usize = 0;
+                        while (i < 10000) : (i += 1) {
+                            self.spawn_random_sprite() catch |err| {
+                                std.log.err("failed to spawn sprite: {s}", .{@errorName(err)});
+                                break;
+                            };
+                        }
+                        self.action_state.go_to(Action.none);
+                    },
+                    .none => {
+                        self.action_menu.draw(renderer, &self.action_state, mouse);
+                    },
+                }
 
-            const vfx_text: [:0]const u8 = if (self.vfx_enabled) "VFX: ON" else "VFX: OFF";
-            self.fui.draw_text(renderer, vfx_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 24, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+                const mx = self.fui.pivotX(.center) - 100;
+                const my = self.fui.pivotY(.bottom_left);
+                const status: [:0]const u8 = if (self.last_yes_no == null)
+                    "Last choice: -"
+                else if (self.last_yes_no.?)
+                    "Last choice: Yes"
+                else
+                    "Last choice: No";
+                self.fui.draw_text(renderer, status, mx, my, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
 
-            const trails_text: [:0]const u8 = if (self.sprite_trails_enabled) "Trails: ON" else "Trails: OFF";
-            self.fui.draw_text(renderer, trails_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 48, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+                var count_buf: [32]u8 = undefined;
+                const sx = self.fui.pivotX(.top_left);
+                const sy = self.fui.pivotY(.top_left) + 64;
+                const count_text = std.fmt.bufPrint(&count_buf, "Sprites: {d}", .{self.sprites.items.len}) catch "Sprites: ?";
+                self.fui.draw_text(renderer, count_text, sx, sy, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
 
-            const follow_text: [:0]const u8 = if (self.cursor_follow_enabled) "Follow: ON" else "Follow: OFF";
-            self.fui.draw_text(renderer, follow_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 72, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+                const vfx_text: [:0]const u8 = if (self.vfx_enabled) "VFX: ON" else "VFX: OFF";
+                self.fui.draw_text(renderer, vfx_text, sx, sy + 24, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
 
-            const simulation_text: [:0]const u8 = if (self.simulation_enabled) "Simulation: ON" else "Simulation: OFF";
-            self.fui.draw_text(renderer, simulation_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 96, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+                const trails_text: [:0]const u8 = if (self.sprite_trails_enabled) "Trails: ON" else "Trails: OFF";
+                self.fui.draw_text(renderer, trails_text, sx, sy + 48, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+
+                const follow_text: [:0]const u8 = if (self.cursor_follow_enabled) "Follow: ON" else "Follow: OFF";
+                self.fui.draw_text(renderer, follow_text, sx, sy + 72, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+
+                const simulation_text: [:0]const u8 = if (self.simulation_enabled) "Simulation: ON" else "Simulation: OFF";
+                self.fui.draw_text(renderer, simulation_text, sx, sy + 96, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+            }
         }
 
         fn spawn_random_sprite(self: *Self) !void {
