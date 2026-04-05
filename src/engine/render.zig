@@ -17,6 +17,21 @@ pub const Framebuffer = enum {
 
 pub const Render = struct {
     const PIXELS_COUNT = CONF.SCREEN_W * CONF.SCREEN_H;
+    const PERF_ALPHA: f32 = 0.1;
+
+    const PerfStats = struct {
+        sim_start_ns: i128 = 0,
+        draw_start_ns: i128 = 0,
+        present_start_ns: i128 = 0,
+        smoothed_fps: f32 = CONF.TARGET_FPS,
+        smoothed_sim_ms: f32 = 0.0,
+        smoothed_draw_ms: f32 = 0.0,
+        smoothed_present_ms: f32 = 0.0,
+        fps_text_buf: [32]u8 = undefined,
+        sim_text_buf: [32]u8 = undefined,
+        draw_text_buf: [32]u8 = undefined,
+        present_text_buf: [32]u8 = undefined,
+    };
 
     const ClippedRect = struct {
         x: i32,
@@ -32,6 +47,7 @@ pub const Render = struct {
     target: Framebuffer = .frame,
     dt: f32 = 0.0,
     now: i64,
+    perf: PerfStats = .{},
 
     pub fn init(buf: *[PIXELS_COUNT]u32) Render {
         const allocator = std.heap.c_allocator;
@@ -73,6 +89,50 @@ pub const Render = struct {
 
     pub fn present(self: *Render) void {
         @memcpy(self.window_buf[0..], self.frame_buf);
+    }
+
+    pub fn perf_begin_sim(self: *Render) void {
+        self.perf.sim_start_ns = std.time.nanoTimestamp();
+    }
+
+    pub fn perf_begin_draw(self: *Render) void {
+        const now_ns = std.time.nanoTimestamp();
+        const sim_ms = ns_to_ms(now_ns - self.perf.sim_start_ns);
+        self.perf.smoothed_sim_ms = smooth(self.perf.smoothed_sim_ms, sim_ms);
+        self.perf.draw_start_ns = now_ns;
+    }
+
+    pub fn perf_begin_present(self: *Render) void {
+        const now_ns = std.time.nanoTimestamp();
+        const draw_ms = ns_to_ms(now_ns - self.perf.draw_start_ns);
+        self.perf.smoothed_draw_ms = smooth(self.perf.smoothed_draw_ms, draw_ms);
+        self.perf.present_start_ns = now_ns;
+    }
+
+    pub fn perf_end_present(self: *Render) void {
+        const now_ns = std.time.nanoTimestamp();
+        const present_ms = ns_to_ms(now_ns - self.perf.present_start_ns);
+        self.perf.smoothed_present_ms = smooth(self.perf.smoothed_present_ms, present_ms);
+
+        if (self.dt > 0.0) {
+            const instant_fps: f32 = 1.0 / self.dt;
+            self.perf.smoothed_fps = smooth(self.perf.smoothed_fps, instant_fps);
+        }
+    }
+
+    pub fn draw_perf_overlay(self: *Render, fui: anytype, comptime Theme: type) void {
+        const fps: i32 = @intFromFloat(@round(self.perf.smoothed_fps));
+        const fps_text = std.fmt.bufPrint(&self.perf.fps_text_buf, "FPS: {d}", .{fps}) catch "FPS: ?";
+        fui.draw_text(self, fps_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left), Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
+
+        const sim_ms_text = std.fmt.bufPrint(&self.perf.sim_text_buf, "SIM: {d:.2}ms", .{self.perf.smoothed_sim_ms}) catch "SIM: ?";
+        fui.draw_text(self, sim_ms_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left) - 24, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
+
+        const draw_ms_text = std.fmt.bufPrint(&self.perf.draw_text_buf, "DRAW: {d:.2}ms", .{self.perf.smoothed_draw_ms}) catch "DRAW: ?";
+        fui.draw_text(self, draw_ms_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left) - 48, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
+
+        const present_ms_text = std.fmt.bufPrint(&self.perf.present_text_buf, "PRESENT: {d:.2}ms", .{self.perf.smoothed_present_ms}) catch "PRESENT: ?";
+        fui.draw_text(self, present_ms_text, fui.pivotX(.bottom_left), fui.pivotY(.bottom_left) - 72, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
     }
 
     pub fn set_target(self: *Render, target: Framebuffer) void {
@@ -280,5 +340,13 @@ pub const Render = struct {
     fn sub_sat(a: u8, b: u8) u8 {
         if (a <= b) return 0;
         return a - b;
+    }
+
+    fn smooth(current: f32, next: f32) f32 {
+        return current + (next - current) * PERF_ALPHA;
+    }
+
+    fn ns_to_ms(value_ns: i128) f32 {
+        return @as(f32, @floatFromInt(value_ns)) / 1_000_000.0;
     }
 };
