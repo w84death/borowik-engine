@@ -10,7 +10,7 @@ See full usage and architecture docs in [MANUAL.md](MANUAL.md).
 
 ## Example Scene
 
-To test all the engine fetures and benchmark performance.
+To test all the engine features and benchmark performance.
 
 ![Example Scene](example.png)
 
@@ -34,7 +34,7 @@ Sprites making trails on terrain and follow cursor.
   - multi-buffer rendering (`frame` + `terrain`) with single `present()` copy per frame
   - frame timing (`dt`) and FPS cap
 - sprite system (`src/engine/sprites.zig`):
-  - 8-bit indexed BMP sprite-sheet loading
+  - 8-bit indexed BMP sprite-sheet loading (embedded bytes)
   - shared sheet + per-instance sprite animation state
   - configurable animation ranges and frame timing
 - mouse input edge detection (`just_pressed`, `just_right_pressed`)
@@ -44,9 +44,12 @@ Sprites making trails on terrain and follow cursor.
   - UI font scales
 - example scene with:
   - sprite spawning (single + batch)
-  - persistent terrain wear trail effect
+  - toggleable simulation, cursor-follow and terrain-wear trail effect
   - toggleable VFX calculations/drawing
+  - top UI hide/show toggle to disable menu/title logic when hidden
   - interactive popup/menu actions
+- built-in performance overlay:
+  - FPS, simulation time, draw time, and present time
 
 ## Run
 
