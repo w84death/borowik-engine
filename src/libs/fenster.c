@@ -73,6 +73,8 @@ int fenster_open(struct fenster *f) {
   DWORD style =
       WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
   RECT rect = {0, 0, f->width, f->height};
+  int window_width, window_height;
+  int x, y;
   WNDCLASSEX wc = {0};
   wc.cbSize = sizeof(WNDCLASSEX);
   wc.style = CS_VREDRAW | CS_HREDRAW;
@@ -82,10 +84,18 @@ int fenster_open(struct fenster *f) {
   RegisterClassEx(&wc);
 
   AdjustWindowRectEx(&rect, style, FALSE, ex_style);
+  window_width = rect.right - rect.left;
+  window_height = rect.bottom - rect.top;
+  x = (GetSystemMetrics(SM_CXSCREEN) - window_width) / 2;
+  y = (GetSystemMetrics(SM_CYSCREEN) - window_height) / 2;
+  if (x < 0)
+    x = 0;
+  if (y < 0)
+    y = 0;
+
   f->hwnd = CreateWindowEx(
-      ex_style, f->title, f->title, style, CW_USEDEFAULT, CW_USEDEFAULT,
-      rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance,
-      NULL);
+      ex_style, f->title, f->title, style, x, y, window_width, window_height,
+      NULL, NULL, hInstance, NULL);
 
   if (f->hwnd == NULL)
     return -1;
@@ -125,7 +135,13 @@ static int FENSTER_KEYCODES[124] = {XK_BackSpace,8,XK_Delete,127,XK_Down,18,XK_E
 int fenster_open(struct fenster *f) {
   f->dpy = XOpenDisplay(NULL);
   int screen = DefaultScreen(f->dpy);
-  f->w = XCreateSimpleWindow(f->dpy, RootWindow(f->dpy, screen), 0, 0, f->width,
+  int x = (DisplayWidth(f->dpy, screen) - f->width) / 2;
+  int y = (DisplayHeight(f->dpy, screen) - f->height) / 2;
+  if (x < 0)
+    x = 0;
+  if (y < 0)
+    y = 0;
+  f->w = XCreateSimpleWindow(f->dpy, RootWindow(f->dpy, screen), x, y, f->width,
                              f->height, 0, BlackPixel(f->dpy, screen),
                              WhitePixel(f->dpy, screen));
   f->gc = XCreateGC(f->dpy, f->w, 0, 0);
