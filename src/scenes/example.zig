@@ -6,6 +6,9 @@ const Mouse = @import("../engine/mouse.zig").Mouse;
 const Menu = @import("../engine/menu.zig").Menu;
 const Render = @import("../engine/render.zig").Render;
 const StateMachine = @import("../engine/state.zig").StateMachine;
+const Effects = @import("../logic/effects.zig").Effects;
+
+const EFFECTS_MAX_PARTICLES = 512;
 
 pub fn ExampleScene(comptime Theme: type) type {
     const Fui = @import("../engine/fui.zig").Fui(Theme);
@@ -20,6 +23,7 @@ pub fn ExampleScene(comptime Theme: type) type {
         toggle_sprite_trails,
         toggle_cursor_follow,
         toggle_simulation,
+        toggle_explosions,
         play_proc_music,
         spawn_sprite,
         spawn_100_sprites,
@@ -41,6 +45,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                     .{ .text = "Toggle Sprite Trails", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_sprite_trails },
                     .{ .text = "Toggle Cursor Follow", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_cursor_follow },
                     .{ .text = "Toggle Simulation", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_simulation },
+                    .{ .text = "Toggle Explosions", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_explosions },
                     .{ .text = "Play Proc Music", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.play_proc_music },
                     .{ .text = "Spawn 1 Sprite", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_sprite },
                     .{ .text = "Spawn 100 sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_100_sprites },
@@ -52,11 +57,13 @@ pub fn ExampleScene(comptime Theme: type) type {
         fui: *Fui,
         vfx: Vfx,
         benchmark: Benchmark,
+        effects: Effects,
         audio: *Audio,
         proc_audio: *ProcAudio,
         action_state: ActionState,
         action_menu: ActionMenu,
         vfx_enabled: bool,
+        explosions_enabled: bool,
         ui_visible: bool,
         last_yes_no: ?bool = null,
 
@@ -65,22 +72,29 @@ pub fn ExampleScene(comptime Theme: type) type {
                 .fui = fui,
                 .vfx = Vfx.init(renderer.width, renderer.height),
                 .benchmark = Benchmark.init(allocator, renderer),
+                .effects = Effects.init(allocator, EFFECTS_MAX_PARTICLES),
                 .audio = audio,
                 .proc_audio = proc_audio,
                 .action_state = ActionState.init(Action.none),
                 .action_menu = ActionMenu.init(fui, &action_groups),
                 .vfx_enabled = false,
+                .explosions_enabled = false,
                 .ui_visible = true,
                 .last_yes_no = null,
             };
         }
 
         pub fn deinit(self: *Self) void {
+            self.effects.deinit();
             self.benchmark.deinit();
         }
 
         pub fn update(self: *Self, mouse: Mouse, dt: f32, renderer: *Render) void {
             self.benchmark.update_simulation(mouse, dt, renderer);
+            self.effects.update(dt);
+            if (self.explosions_enabled and mouse.just_pressed) {
+                self.effects.spawn_explosion(mouse.x, mouse.y);
+            }
         }
 
         pub fn draw(self: *Self, mouse: Mouse, dt: f32, renderer: *Render) void {
@@ -89,6 +103,7 @@ pub fn ExampleScene(comptime Theme: type) type {
             if (self.vfx_enabled and self.benchmark.is_simulation_enabled()) {
                 self.vfx.draw(renderer, Theme.SECONDARY_COLOR, dt);
             }
+            self.effects.draw(renderer);
             self.handle_top_controls(mouse, renderer);
             self.handle_ui_interactions(mouse, renderer);
             if (self.ui_visible) self.action_state.update();
@@ -124,6 +139,10 @@ pub fn ExampleScene(comptime Theme: type) type {
                 },
                 .toggle_simulation => {
                     self.benchmark.toggle_simulation();
+                    self.action_state.go_to(Action.none);
+                },
+                .toggle_explosions => {
+                    self.explosions_enabled = !self.explosions_enabled;
                     self.action_state.go_to(Action.none);
                 },
                 .play_proc_music => {
@@ -171,6 +190,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                 .toggle_sprite_trails,
                 .toggle_cursor_follow,
                 .toggle_simulation,
+                .toggle_explosions,
                 .play_proc_music,
                 .spawn_sprite,
                 .spawn_100_sprites,
@@ -216,6 +236,9 @@ pub fn ExampleScene(comptime Theme: type) type {
 
             const simulation_text: [:0]const u8 = if (self.benchmark.is_simulation_enabled()) "Simulation: ON" else "Simulation: OFF";
             self.fui.draw_text(renderer, simulation_text, sx, sy + 96, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+
+            const explosions_text: [:0]const u8 = if (self.explosions_enabled) "Explosions: ON" else "Explosions: OFF";
+            self.fui.draw_text(renderer, explosions_text, sx, sy + 120, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
         }
     };
 }
