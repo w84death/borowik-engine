@@ -51,9 +51,9 @@ To test all the engine features and benchmark performance.
 
 ![Example Scene](documents/screenshot-2.png)
 
-Sprites making trails on terrain and follow cursor.
+Sprites creation.
 
-![Shrooms Follow](documents/screenshot-3.png)
+![BTS](documents/sprites_bts.jpg)
 
 ## Run
 
