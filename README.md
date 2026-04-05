@@ -9,6 +9,8 @@ See full usage and architecture docs in [MANUAL.md](MANUAL.md).
 
 ## Engine Features
 
+![Hand](documents/hand.gif)
+
 - software rendering with `fenster` backend
 - generic state machine (`go_to`, `update`, `is`)
 - reusable menu system (`src/engine/menu.zig`)

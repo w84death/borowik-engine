@@ -73,7 +73,7 @@ pub fn main() void {
     var logo_sheet: ?*SpriteSheet = null;
     var logo_sprite: ?Sprite = null;
 
-    if (SpriteSheet.load_bmp_bytes(allocator, @embedFile("sprites/logo.bmp"), 96, 22)) |sheet| {
+    if (SpriteSheet.load_bmp_bytes(allocator, @embedFile("sprites/logo.bmp"), 100, 26)) |sheet| {
         const sheet_ptr = allocator.create(SpriteSheet) catch null;
         if (sheet_ptr) |ptr| {
             ptr.* = sheet;
