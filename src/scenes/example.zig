@@ -22,6 +22,8 @@ pub fn ExampleScene(comptime Theme: type) type {
         info_popup,
         yes_no_popup,
         toggle_vfx,
+        toggle_sprite_trails,
+        toggle_cursor_follow,
         spawn_sprite,
         spawn_100_sprites,
         spawn_10k_sprites,
@@ -63,6 +65,8 @@ pub fn ExampleScene(comptime Theme: type) type {
                     .{ .text = "Info Popup", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.info_popup },
                     .{ .text = "Ask Yes/No", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.yes_no_popup },
                     .{ .text = "Toggle VFX", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_vfx },
+                    .{ .text = "Toggle Sprite Trails", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_sprite_trails },
+                    .{ .text = "Toggle Cursor Follow", .normal_color = Theme.MENU_SECONDARY_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.toggle_cursor_follow },
                     .{ .text = "Spawn 1 Sprite", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_sprite },
                     .{ .text = "Spawn 100 sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_100_sprites },
                     .{ .text = "Spawn 10K sprites", .normal_color = Theme.MENU_NORMAL_COLOR, .hover_color = Theme.MENU_HIGHLIGHT_COLOR, .target_state = Action.spawn_10k_sprites },
@@ -79,6 +83,8 @@ pub fn ExampleScene(comptime Theme: type) type {
         sprites_defs: [2]SpriteDefinition,
         prng: std.Random.DefaultPrng,
         vfx_enabled: bool,
+        sprite_trails_enabled: bool,
+        cursor_follow_enabled: bool,
         terrain_ready: bool,
         last_yes_no: ?bool = null,
 
@@ -117,6 +123,8 @@ pub fn ExampleScene(comptime Theme: type) type {
             self.sprites = .{};
             self.prng = std.Random.DefaultPrng.init(seed);
             self.vfx_enabled = false;
+            self.sprite_trails_enabled = false;
+            self.cursor_follow_enabled = false;
             self.last_yes_no = null;
             self.terrain_ready = false;
 
@@ -160,18 +168,13 @@ pub fn ExampleScene(comptime Theme: type) type {
                 self.vfx.draw(renderer, Theme.SECONDARY_COLOR, dt);
             }
 
-            const title = "Example Scene";
-            const tx = self.fui.pivotX(.center) - self.fui.text_center(title, Theme.FONT_MEDIUM)[0];
-            const ty = self.fui.pivotY(.center) - 160;
-            self.fui.draw_text(renderer, title, tx, ty, Theme.FONT_MEDIUM, Theme.PRIMARY_COLOR);
-
             const rand = self.prng.random();
             for (self.sprites.items) |*instance| {
                 instance.dir_timer -= dt;
                 if (instance.dir_timer <= 0.0) {
                     instance.dir_timer = random_range_f32(&rand, SPRITE_DIR_HOLD_MIN, SPRITE_DIR_HOLD_MAX);
 
-                    if (rand.intRangeAtMost(u32, 0, 99) < SPRITE_CURSOR_TURN_CHANCE) {
+                    if (self.cursor_follow_enabled and rand.intRangeAtMost(u32, 0, 99) < SPRITE_CURSOR_TURN_CHANCE) {
                         const center_x = instance.x + @as(f32, @floatFromInt(@divFloor(instance.size, 2)));
                         const center_y = instance.y + @as(f32, @floatFromInt(@divFloor(instance.size, 2)));
                         const to_mouse_x = @as(f32, @floatFromInt(mouse.x)) - center_x;
@@ -207,9 +210,16 @@ pub fn ExampleScene(comptime Theme: type) type {
                 instance.sprite.update(dt);
                 const draw_x: i32 = @intFromFloat(instance.x);
                 const draw_y: i32 = @intFromFloat(instance.y);
-                renderer.darken_buffer_pixel(.terrain, draw_x + @divFloor(instance.size, 2), draw_y + @divFloor(instance.size, 2), TERRAIN_WEAR_DARKEN);
+                if (self.sprite_trails_enabled) {
+                    renderer.darken_buffer_pixel(.terrain, draw_x + @divFloor(instance.size, 2), draw_y + @divFloor(instance.size, 2), TERRAIN_WEAR_DARKEN);
+                }
                 instance.sprite.draw(renderer, draw_x, draw_y);
             }
+
+            const title = "Example Scene";
+            const tx = self.fui.pivotX(.center) - self.fui.text_center(title, Theme.FONT_MEDIUM)[0];
+            const ty = self.fui.pivotY(.center) - 320;
+            self.fui.draw_text(renderer, title, tx, ty, Theme.FONT_MEDIUM, Theme.PRIMARY_COLOR);
 
             switch (self.action_state.current) {
                 .info_popup => {
@@ -225,6 +235,14 @@ pub fn ExampleScene(comptime Theme: type) type {
                 },
                 .toggle_vfx => {
                     self.vfx_enabled = !self.vfx_enabled;
+                    self.action_state.go_to(Action.none);
+                },
+                .toggle_sprite_trails => {
+                    self.sprite_trails_enabled = !self.sprite_trails_enabled;
+                    self.action_state.go_to(Action.none);
+                },
+                .toggle_cursor_follow => {
+                    self.cursor_follow_enabled = !self.cursor_follow_enabled;
                     self.action_state.go_to(Action.none);
                 },
                 .spawn_sprite => {
@@ -265,7 +283,7 @@ pub fn ExampleScene(comptime Theme: type) type {
                 "Last choice: Yes"
             else
                 "Last choice: No";
-            self.fui.draw_text(renderer, status, mx, ty + 290, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
+            self.fui.draw_text(renderer, status, mx, ty + 320, Theme.FONT_DEFAULT, Theme.SECONDARY_COLOR);
 
             var count_buf: [32]u8 = undefined;
             const count_text = std.fmt.bufPrint(&count_buf, "Sprites: {d}", .{self.sprites.items.len}) catch "Sprites: ?";
@@ -273,6 +291,12 @@ pub fn ExampleScene(comptime Theme: type) type {
 
             const vfx_text: [:0]const u8 = if (self.vfx_enabled) "VFX: ON" else "VFX: OFF";
             self.fui.draw_text(renderer, vfx_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 24, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+
+            const trails_text: [:0]const u8 = if (self.sprite_trails_enabled) "Trails: ON" else "Trails: OFF";
+            self.fui.draw_text(renderer, trails_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 48, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
+
+            const follow_text: [:0]const u8 = if (self.cursor_follow_enabled) "Follow: ON" else "Follow: OFF";
+            self.fui.draw_text(renderer, follow_text, self.fui.pivotX(.top_right) - 224, self.fui.pivotY(.top_right) + 72, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
         }
 
         fn spawn_random_sprite(self: *Self) !void {
