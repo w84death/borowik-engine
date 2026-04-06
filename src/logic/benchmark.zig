@@ -20,6 +20,9 @@ const TRAIL_DEF_INDEX: usize = 4;
 pub const BenchmarkLogic = struct {
     const Self = @This();
 
+    pub const SPRITE_DEF_PLANTS: usize = PLANTS_DEF_INDEX;
+    pub const SPRITE_DEF_TERRAIN_HOLE: usize = TERRAIN_HOLE_DEF_INDEX;
+
     const SpriteInstance = struct {
         sprite: Sprite,
         x: f32,
@@ -212,18 +215,19 @@ pub const BenchmarkLogic = struct {
             const should_splat_trails = self.sprite_trails_enabled and trails_def.sprite_sheet != null and trails_def.sprite_anim_len > 0;
             if (should_splat_trails) {
                 if (self.trail_splat_timer >= TRAIL_SPLAT_INTERVAL_FRAMES) {
-                    renderer.set_target(.terrain);
-                    defer renderer.set_target(.frame);
-
                     const sheet = trails_def.sprite_sheet.?;
-                    const frame_offset = rand.intRangeAtMost(usize, 0, trails_def.sprite_anim_len - 1);
-                    const frame = trails_def.sprite_anim_start + frame_offset;
                     const center_x: i32 = @as(i32, @intFromFloat(prev_x)) + @divFloor(instance.size, 2);
                     const center_y: i32 = @as(i32, @intFromFloat(prev_y)) + @divFloor(instance.size, 2);
-                    const draw_x = center_x - @divFloor(trails_def.sprite_size, 2);
-                    const draw_y = center_y - @divFloor(trails_def.sprite_size, 2);
-
-                    sheet.draw_frame(renderer, frame, draw_x, draw_y);
+                    renderer.splat_sprite(
+                        .terrain,
+                        sheet,
+                        trails_def.sprite_size,
+                        trails_def.sprite_anim_start,
+                        trails_def.sprite_anim_len,
+                        center_x,
+                        center_y,
+                        &rand,
+                    );
                     self.trail_splat_timer = 0;
                 } else {
                     self.trail_splat_timer += 1;
@@ -260,63 +264,23 @@ pub const BenchmarkLogic = struct {
         return self.sprites.items.len;
     }
 
-    pub fn splat_terrain_hole(self: *Self, x: i32, y: i32, renderer: *Render) void {
-        const def = &self.sprite_defs[TERRAIN_HOLE_DEF_INDEX];
+    pub fn splat_sprite(self: *Self, def_index: usize, x: i32, y: i32, renderer: *Render) void {
+        if (def_index >= self.sprite_defs.len) return;
+        const def = &self.sprite_defs[def_index];
         const sheet = def.sprite_sheet orelse return;
         if (def.sprite_anim_len == 0) return;
 
         const rand = self.prng.random();
-        const frame_offset = rand.intRangeAtMost(usize, 0, def.sprite_anim_len - 1);
-        const frame = def.sprite_anim_start + frame_offset;
-        const draw_x = x - @divFloor(def.sprite_size, 2);
-        const draw_y = y - @divFloor(def.sprite_size, 2);
-
-        renderer.set_target(.terrain);
-        defer renderer.set_target(.frame);
-        sheet.draw_frame(renderer, frame, draw_x, draw_y);
-    }
-
-    pub fn splat_plant(self: *Self, x: i32, y: i32, renderer: *Render) void {
-        const def = &self.sprite_defs[PLANTS_DEF_INDEX];
-        const sheet = def.sprite_sheet orelse return;
-        if (def.sprite_anim_len == 0) return;
-
-        const rand = self.prng.random();
-        const frame_offset = rand.intRangeAtMost(usize, 0, def.sprite_anim_len - 1);
-        const frame = def.sprite_anim_start + frame_offset;
-        const draw_x = x - @divFloor(def.sprite_size, 2);
-        const draw_y = y - @divFloor(def.sprite_size, 2);
-
-        renderer.set_target(.terrain);
-        defer renderer.set_target(.frame);
-        sheet.draw_frame(renderer, frame, draw_x, draw_y);
-    }
-
-    pub fn toggle_sprite_trails(self: *Self) bool {
-        self.sprite_trails_enabled = !self.sprite_trails_enabled;
-        return self.sprite_trails_enabled;
-    }
-
-    pub fn toggle_cursor_follow(self: *Self) bool {
-        self.cursor_follow_enabled = !self.cursor_follow_enabled;
-        return self.cursor_follow_enabled;
-    }
-
-    pub fn toggle_simulation(self: *Self) bool {
-        self.simulation_enabled = !self.simulation_enabled;
-        return self.simulation_enabled;
-    }
-
-    pub fn is_sprite_trails_enabled(self: *const Self) bool {
-        return self.sprite_trails_enabled;
-    }
-
-    pub fn is_cursor_follow_enabled(self: *const Self) bool {
-        return self.cursor_follow_enabled;
-    }
-
-    pub fn is_simulation_enabled(self: *const Self) bool {
-        return self.simulation_enabled;
+        renderer.splat_sprite(
+            .terrain,
+            sheet,
+            def.sprite_size,
+            def.sprite_anim_start,
+            def.sprite_anim_len,
+            x,
+            y,
+            &rand,
+        );
     }
 
     fn spawn_random_sprite(self: *Self) !void {
@@ -347,47 +311,30 @@ pub const BenchmarkLogic = struct {
 
     fn init_terrain(self: *Self, renderer: *Render) void {
         renderer.clear_buffer(.terrain, EXAMPLE_BG_COLOR);
-        renderer.set_target(.terrain);
-        defer renderer.set_target(.frame);
-
         const rand = self.prng.random();
 
         const terrain_def = &self.sprite_defs[TERRAIN_DEF_INDEX];
-        if (terrain_def.sprite_sheet) |terrain_sheet| {
-            if (terrain_def.sprite_anim_len > 0) {
-                var terrain_stamp = Sprite.init(terrain_sheet, 0.0);
-                terrain_stamp.set_animation(terrain_def.sprite_anim_start, terrain_def.sprite_anim_len, 0.0, true) catch {};
 
-                const terrain_max_x = @max(-terrain_def.sprite_size, self.screen_width);
-                const terrain_max_y = @max(-terrain_def.sprite_size, self.screen_height);
+        const terrain_max_x = @max(-terrain_def.sprite_size, self.screen_width);
+        const terrain_max_y = @max(-terrain_def.sprite_size, self.screen_height);
 
-                var i: usize = 0;
-                while (i < TERRAIN_SPLAT_COUNT) : (i += 1) {
-                    terrain_stamp.current_offset = rand.intRangeAtMost(usize, 0, terrain_def.sprite_anim_len - 1);
-                    const x = rand.intRangeAtMost(i32, 0, terrain_max_x);
-                    const y = rand.intRangeAtMost(i32, 0, terrain_max_y);
-                    terrain_stamp.draw(renderer, x, y);
-                }
-            }
+        var i: usize = 0;
+        while (i < TERRAIN_SPLAT_COUNT) : (i += 1) {
+            const x = rand.intRangeAtMost(i32, 0, terrain_max_x);
+            const y = rand.intRangeAtMost(i32, 0, terrain_max_y);
+            self.splat_sprite(TERRAIN_DEF_INDEX, x, y, renderer);
         }
 
         const plants_def = &self.sprite_defs[PLANTS_DEF_INDEX];
-        if (plants_def.sprite_sheet) |plants_sheet| {
-            if (plants_def.sprite_anim_len > 0) {
-                var plants_stamp = Sprite.init(plants_sheet, 0.0);
-                plants_stamp.set_animation(plants_def.sprite_anim_start, plants_def.sprite_anim_len, 0.0, true) catch {};
 
-                const plants_max_x = @max(-@divFloor(plants_def.sprite_size, 2), self.screen_width - @divFloor(plants_def.sprite_size, 2));
-                const plants_max_y = @max(-@divFloor(plants_def.sprite_size, 2), self.screen_height - @divFloor(plants_def.sprite_size, 2));
+        const plants_max_x = @max(-@divFloor(plants_def.sprite_size, 2), self.screen_width - @divFloor(plants_def.sprite_size, 2));
+        const plants_max_y = @max(-@divFloor(plants_def.sprite_size, 2), self.screen_height - @divFloor(plants_def.sprite_size, 2));
 
-                var i: usize = 0;
-                while (i < PLANTS_SPLAT_COUNT) : (i += 1) {
-                    plants_stamp.current_offset = rand.intRangeAtMost(usize, 0, plants_def.sprite_anim_len - 1);
-                    const x = rand.intRangeAtMost(i32, 0, plants_max_x);
-                    const y = rand.intRangeAtMost(i32, 0, plants_max_y);
-                    plants_stamp.draw(renderer, x, y);
-                }
-            }
+        i = 0;
+        while (i < PLANTS_SPLAT_COUNT) : (i += 1) {
+            const x = rand.intRangeAtMost(i32, 0, plants_max_x);
+            const y = rand.intRangeAtMost(i32, 0, plants_max_y);
+            self.splat_sprite(PLANTS_DEF_INDEX, x, y, renderer);
         }
     }
 

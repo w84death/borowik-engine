@@ -161,24 +161,6 @@ pub const Render = struct {
         @memcpy(dst_buf, src_buf);
     }
 
-    pub fn darken_buffer_pixel(self: *Render, target: Framebuffer, x: i32, y: i32, amount: u8) void {
-        if (x < 0 or y < 0 or x >= self.width or y >= self.height) return;
-
-        const buf = self.buffer_ptr(target);
-        const index: usize = @intCast(y * self.width + x);
-        const color = buf[index];
-
-        const r: u8 = @intCast((color >> 16) & 0xFF);
-        const g: u8 = @intCast((color >> 8) & 0xFF);
-        const b: u8 = @intCast(color & 0xFF);
-
-        const dr = sub_sat(r, amount);
-        const dg = sub_sat(g, amount);
-        const db = sub_sat(b, amount);
-
-        buf[index] = (@as(u32, dr) << 16) | (@as(u32, dg) << 8) | @as(u32, db);
-    }
-
     pub fn target_buffer(self: *Render) []u32 {
         return self.active_buffer_ptr();
     }
@@ -238,6 +220,31 @@ pub const Render = struct {
                 self.put_pixel(@intCast(col), @intCast(row), color);
             }
         }
+    }
+
+    pub fn splat_sprite(
+        self: *Render,
+        target: Framebuffer,
+        sheet: anytype,
+        sprite_size: i32,
+        anim_start: usize,
+        anim_len: usize,
+        x: i32,
+        y: i32,
+        rand: *const std.Random,
+    ) void {
+        if (anim_len == 0) return;
+
+        const frame_offset = rand.intRangeAtMost(usize, 0, anim_len - 1);
+        const frame = anim_start + frame_offset;
+        const draw_x = x - @divFloor(sprite_size, 2);
+        const draw_y = y - @divFloor(sprite_size, 2);
+
+        const prev_target = self.target;
+        self.set_target(target);
+        defer self.set_target(prev_target);
+
+        sheet.draw_frame(self, frame, draw_x, draw_y);
     }
 
     pub fn draw_rect_trans(self: *Render, x: i32, y: i32, w: i32, h: i32, color: u32) void {

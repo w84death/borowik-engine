@@ -145,11 +145,11 @@ pub fn ExampleScene(comptime Theme: type) type {
             }
             if (mouse.just_right_pressed) {
                 self.sfx.play(.plant);
-                self.benchmark.splat_plant(mouse.x, mouse.y, renderer);
+                self.benchmark.splat_sprite(Benchmark.SPRITE_DEF_PLANTS, mouse.x, mouse.y, renderer);
             }
             if (self.explosions_enabled and mouse.just_pressed) {
                 self.effects.spawn_explosion(mouse.x, mouse.y);
-                self.benchmark.splat_terrain_hole(mouse.x, mouse.y, renderer);
+                self.benchmark.splat_sprite(Benchmark.SPRITE_DEF_TERRAIN_HOLE, mouse.x, mouse.y, renderer);
             }
         }
 
@@ -192,18 +192,18 @@ pub fn ExampleScene(comptime Theme: type) type {
 
             switch (self.action_state.current) {
                 .toggle_sprite_trails => {
-                    const st_enabled = self.benchmark.toggle_sprite_trails();
-                    self.sfx.play(if (st_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
+                    self.benchmark.sprite_trails_enabled = !self.benchmark.sprite_trails_enabled;
+                    self.sfx.play(if (self.benchmark.sprite_trails_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .toggle_cursor_follow => {
-                    const cf_enabled = self.benchmark.toggle_cursor_follow();
-                    self.sfx.play(if (cf_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
+                    self.benchmark.cursor_follow_enabled = !self.benchmark.cursor_follow_enabled;
+                    self.sfx.play(if (self.benchmark.cursor_follow_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .toggle_simulation => {
-                    const s_enabled = self.benchmark.toggle_simulation();
-                    self.sfx.play(if (s_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
+                    self.benchmark.simulation_enabled = !self.benchmark.simulation_enabled;
+                    self.sfx.play(if (self.benchmark.simulation_enabled) SfxEffect.menu_main else SfxEffect.menu_back);
                     self.action_state.go_to(Action.none);
                 },
                 .toggle_explosions => {
@@ -304,13 +304,13 @@ pub fn ExampleScene(comptime Theme: type) type {
             const count_text = std.fmt.bufPrint(&count_buf, "Sprites: {d}", .{self.benchmark.sprite_count()}) catch "Sprites: ?";
             self.fui.draw_text(renderer, count_text, sx, sy, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
 
-            const trails_text: [:0]const u8 = if (self.benchmark.is_sprite_trails_enabled()) "Trails: ON" else "Trails: OFF";
+            const trails_text: [:0]const u8 = if (self.benchmark.sprite_trails_enabled) "Trails: ON" else "Trails: OFF";
             self.fui.draw_text(renderer, trails_text, sx, sy + 24, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
 
-            const follow_text: [:0]const u8 = if (self.benchmark.is_cursor_follow_enabled()) "Follow: ON" else "Follow: OFF";
+            const follow_text: [:0]const u8 = if (self.benchmark.cursor_follow_enabled) "Follow: ON" else "Follow: OFF";
             self.fui.draw_text(renderer, follow_text, sx, sy + 48, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
 
-            const simulation_text: [:0]const u8 = if (self.benchmark.is_simulation_enabled()) "Simulation: ON" else "Simulation: OFF";
+            const simulation_text: [:0]const u8 = if (self.benchmark.simulation_enabled) "Simulation: ON" else "Simulation: OFF";
             self.fui.draw_text(renderer, simulation_text, sx, sy + 72, Theme.FONT_DEFAULT, Theme.PRIMARY_COLOR);
 
             const explosions_text: [:0]const u8 = if (self.explosions_enabled) "Explosions: ON" else "Explosions: OFF";
