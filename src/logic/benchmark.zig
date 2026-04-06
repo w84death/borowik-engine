@@ -10,11 +10,11 @@ const SPRITE_CURSOR_TURN_CHANCE = 72;
 const TERRAIN_SPLAT_COUNT = 2048;
 const PLANTS_SPLAT_COUNT = 128;
 const EXAMPLE_BG_COLOR = 0x595652;
-const TERRAIN_WEAR_DARKEN = 8;
 const ANIMATED_DEF_INDEX: usize = 0;
 const TERRAIN_DEF_INDEX: usize = 2;
 const PLANTS_DEF_INDEX: usize = 1;
 const TERRAIN_HOLE_DEF_INDEX: usize = 3;
+const TRAIL_DEF_INDEX: usize = 4;
 
 pub const BenchmarkLogic = struct {
     const Self = @This();
@@ -43,7 +43,7 @@ pub const BenchmarkLogic = struct {
 
     allocator: std.mem.Allocator,
     sprites: std.ArrayListUnmanaged(SpriteInstance),
-    sprite_defs: [4]SpriteDefinition,
+    sprite_defs: [5]SpriteDefinition,
     prng: std.Random.DefaultPrng,
     sprite_trails_enabled: bool,
     cursor_follow_enabled: bool,
@@ -110,6 +110,17 @@ pub const BenchmarkLogic = struct {
                 .speed_min = 0,
                 .speed_max = 0,
             },
+            .{
+                .asset_name = "trail.bmp",
+                .sprite_data = @embedFile("../sprites/trail.bmp"),
+                .sprite_sheet = null,
+                .sprite_size = 16,
+                .sprite_anim_start = 0,
+                .sprite_anim_len = 4,
+                .sprite_anim_dur = 0,
+                .speed_min = 0,
+                .speed_max = 0,
+            },
         };
 
         for (&self.sprite_defs) |*def| {
@@ -150,7 +161,12 @@ pub const BenchmarkLogic = struct {
         if (!self.simulation_enabled) return;
 
         const rand = self.prng.random();
+        const trails_def = &self.sprite_defs[TRAIL_DEF_INDEX];
+
         for (self.sprites.items) |*instance| {
+            const prev_x = instance.x;
+            const prev_y = instance.y;
+
             instance.dir_timer -= dt;
             if (instance.dir_timer <= 0.0) {
                 instance.dir_timer = random_range_f32(&rand, SPRITE_DIR_HOLD_MIN, SPRITE_DIR_HOLD_MAX);
@@ -190,10 +206,20 @@ pub const BenchmarkLogic = struct {
 
             instance.sprite.update(dt);
 
-            if (self.sprite_trails_enabled) {
-                const draw_x: i32 = @intFromFloat(instance.x);
-                const draw_y: i32 = @intFromFloat(instance.y);
-                renderer.darken_buffer_pixel(.terrain, draw_x + @divFloor(instance.size, 2), draw_y + @divFloor(instance.size, 2), TERRAIN_WEAR_DARKEN);
+            const should_splat_trails = self.sprite_trails_enabled and trails_def.sprite_sheet != null and trails_def.sprite_anim_len > 0;
+            if (should_splat_trails) {
+                renderer.set_target(.terrain);
+                defer renderer.set_target(.frame);
+
+                const sheet = trails_def.sprite_sheet.?;
+                const frame_offset = rand.intRangeAtMost(usize, 0, trails_def.sprite_anim_len - 1);
+                const frame = trails_def.sprite_anim_start + frame_offset;
+                const center_x: i32 = @as(i32, @intFromFloat(prev_x)) + @divFloor(instance.size, 2);
+                const center_y: i32 = @as(i32, @intFromFloat(prev_y)) + @divFloor(instance.size, 2);
+                const draw_x = center_x - @divFloor(trails_def.sprite_size, 2);
+                const draw_y = center_y - @divFloor(trails_def.sprite_size, 2);
+
+                sheet.draw_frame(renderer, frame, draw_x, draw_y);
             }
         }
     }
