@@ -14,7 +14,7 @@ const TERRAIN_WEAR_DARKEN = 8;
 const ANIMATED_DEF_INDEX: usize = 0;
 const TERRAIN_DEF_INDEX: usize = 2;
 const PLANTS_DEF_INDEX: usize = 1;
-const TERRAIN_HOLE_DEF_INDEX: usize = 2;
+const TERRAIN_HOLE_DEF_INDEX: usize = 3;
 
 pub const BenchmarkLogic = struct {
     const Self = @This();
@@ -43,7 +43,7 @@ pub const BenchmarkLogic = struct {
 
     allocator: std.mem.Allocator,
     sprites: std.ArrayListUnmanaged(SpriteInstance),
-    sprite_defs: [3]SpriteDefinition,
+    sprite_defs: [4]SpriteDefinition,
     prng: std.Random.DefaultPrng,
     sprite_trails_enabled: bool,
     cursor_follow_enabled: bool,
@@ -94,7 +94,18 @@ pub const BenchmarkLogic = struct {
                 .sprite_sheet = null,
                 .sprite_size = 64,
                 .sprite_anim_start = 0,
-                .sprite_anim_len = 7,
+                .sprite_anim_len = 5,
+                .sprite_anim_dur = 0,
+                .speed_min = 0,
+                .speed_max = 0,
+            },
+            .{
+                .asset_name = "terrain.bmp",
+                .sprite_data = @embedFile("../sprites/terrain.bmp"),
+                .sprite_sheet = null,
+                .sprite_size = 64,
+                .sprite_anim_start = 5,
+                .sprite_anim_len = 2,
                 .sprite_anim_dur = 0,
                 .speed_min = 0,
                 .speed_max = 0,
@@ -217,6 +228,22 @@ pub const BenchmarkLogic = struct {
 
     pub fn splat_terrain_hole(self: *Self, x: i32, y: i32, renderer: *Render) void {
         const def = &self.sprite_defs[TERRAIN_HOLE_DEF_INDEX];
+        const sheet = def.sprite_sheet orelse return;
+        if (def.sprite_anim_len == 0) return;
+
+        const rand = self.prng.random();
+        const frame_offset = rand.intRangeAtMost(usize, 0, def.sprite_anim_len - 1);
+        const frame = def.sprite_anim_start + frame_offset;
+        const draw_x = x - @divFloor(def.sprite_size, 2);
+        const draw_y = y - @divFloor(def.sprite_size, 2);
+
+        renderer.set_target(.terrain);
+        defer renderer.set_target(.frame);
+        sheet.draw_frame(renderer, frame, draw_x, draw_y);
+    }
+
+    pub fn splat_plant(self: *Self, x: i32, y: i32, renderer: *Render) void {
+        const def = &self.sprite_defs[PLANTS_DEF_INDEX];
         const sheet = def.sprite_sheet orelse return;
         if (def.sprite_anim_len == 0) return;
 

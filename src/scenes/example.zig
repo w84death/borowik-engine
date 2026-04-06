@@ -131,6 +131,9 @@ pub fn ExampleScene(comptime Theme: type) type {
             if (self.cursor_sprite) |*cursor| {
                 cursor.update(dt);
             }
+            if (mouse.just_right_pressed) {
+                self.benchmark.splat_plant(mouse.x, mouse.y, renderer);
+            }
             if (self.explosions_enabled and mouse.just_pressed) {
                 self.effects.spawn_explosion(mouse.x, mouse.y);
                 self.benchmark.splat_terrain_hole(mouse.x, mouse.y, renderer);
